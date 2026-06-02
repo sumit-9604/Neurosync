@@ -1,0 +1,426 @@
+ai-remote-control-system/
+│
+├── mobile-app/                          # React Native Frontend
+│   ├── .env
+│   ├── app.json
+│   ├── babel.config.js
+│   ├── tailwind.config.js
+│   ├── tsconfig.json
+│   ├── package.json
+│   │
+│   ├── assets/
+│   │   ├── fonts/
+│   │   ├── images/
+│   │   ├── animations/
+│   │   └── splash.png
+│   │
+│   ├── src/
+│   │   ├── App.tsx
+│   │   │
+│   │   ├── screens/
+│   │   │   ├── auth/
+│   │   │   │   ├── SplashScreen.tsx
+│   │   │   │   ├── LoginScreen.tsx
+│   │   │   │   ├── RegisterScreen.tsx
+│   │   │   │   └── DevicePairingScreen.tsx
+│   │   │   │
+│   │   │   ├── dashboard/
+│   │   │   │   ├── DashboardScreen.tsx
+│   │   │   │   ├── ConnectionStatusCard.tsx
+│   │   │   │   ├── PCStatusWidget.tsx
+│   │   │   │   ├── SystemMetricsWidget.tsx
+│   │   │   │   └── RecentCommandsList.tsx
+│   │   │   │
+│   │   │   ├── connection/
+│   │   │   │   ├── ConnectionCenterScreen.tsx
+│   │   │   │   ├── DeviceListScreen.tsx
+│   │   │   │   ├── AddPCDeviceScreen.tsx
+│   │   │   │   ├── PCConnectionDetails.tsx
+│   │   │   │   └── ConnectionHistoryScreen.tsx
+│   │   │   │
+│   │   │   ├── remote/
+│   │   │   │   ├── RemoteDesktopScreen.tsx
+│   │   │   │   ├── ScreenStreamViewer.tsx
+│   │   │   │   ├── TouchMouseControls.tsx
+│   │   │   │   ├── KeyboardOverlay.tsx
+│   │   │   │   └── RemoteControlBar.tsx
+│   │   │   │
+│   │   │   ├── terminal/
+│   │   │   │   ├── TerminalScreen.tsx
+│   │   │   │   ├── TerminalOutput.tsx
+│   │   │   │   ├── CommandInput.tsx
+│   │   │   │   ├── CommandHistoryList.tsx
+│   │   │   │   ├── CodeEditorModal.tsx
+│   │   │   │   └── ExecutionResultViewer.tsx
+│   │   │   │
+│   │   │   ├── files/
+│   │   │   │   ├── FileManagerScreen.tsx
+│   │   │   │   ├── FileBrowser.tsx
+│   │   │   │   ├── FileDownloadProgress.tsx
+│   │   │   │   ├── FileUploadModal.tsx
+│   │   │   │   ├── FilePreviewModal.tsx
+│   │   │   │   └── FileSearchBar.tsx
+│   │   │   │
+│   │   │   ├── ai/
+│   │   │   │   ├── AIAssistantScreen.tsx
+│   │   │   │   ├── ChatInterface.tsx
+│   │   │   │   ├── VoiceCommandButton.tsx
+│   │   │   │   ├── TaskWorkflowBuilder.tsx
+│   │   │   │   ├── SuggestionChips.tsx
+│   │   │   │   └── AIExecutionStatus.tsx
+│   │   │   │
+│   │   │   ├── apps/
+│   │   │   │   ├── AppLauncherScreen.tsx
+│   │   │   │   ├── InstalledAppsList.tsx
+│   │   │   │   ├── AppCategoryGrid.tsx
+│   │   │   │   └── RunningAppsMonitor.tsx
+│   │   │   │
+│   │   │   ├── settings/
+│   │   │   │   ├── SettingsScreen.tsx
+│   │   │   │   ├── ProfileSettings.tsx
+│   │   │   │   ├── SecuritySettings.tsx
+│   │   │   │   ├── PCDeviceSettings.tsx
+│   │   │   │   ├── StreamingQualitySettings.tsx
+│   │   │   │   └── NotificationSettings.tsx
+│   │   │   │
+│   │   │   └── monitoring/
+│   │   │       ├── SystemMonitorScreen.tsx
+│   │   │       ├── CPUMetricsChart.tsx
+│   │   │       ├── RAMMetricsChart.tsx
+│   │   │       ├── NetworkSpeedMonitor.tsx
+│   │   │       └── ActiveProcessesList.tsx
+│   │   │
+│   │   ├── components/
+│   │   │   ├── common/
+│   │   │   │   ├── Button.tsx
+│   │   │   │   ├── Card.tsx
+│   │   │   │   ├── Input.tsx
+│   │   │   │   ├── Modal.tsx
+│   │   │   │   ├── LoadingSpinner.tsx
+│   │   │   │   ├── ToastNotification.tsx
+│   │   │   │   └── ConnectionBadge.tsx
+│   │   │   │
+│   │   │   ├── connection/
+│   │   │   │   ├── PCConnectionCard.tsx
+│   │   │   │   ├── ConnectionStatusIndicator.tsx
+│   │   │   │   ├── PCOnOffStatus.tsx
+│   │   │   │   ├── PermissionRequestModal.tsx
+│   │   │   │   └── QRCodePairing.tsx
+│   │   │   │
+│   │   │   └── streaming/
+│   │   │       ├── VideoStreamPlayer.tsx
+│   │   │       ├── StreamQualitySelector.tsx
+│   │   │       └── FPSMonitor.tsx
+│   │   │
+│   │   ├── services/
+│   │   │   ├── api/
+│   │   │   │   ├── apiClient.ts
+│   │   │   │   ├── auth.service.ts
+│   │   │   │   ├── device.service.ts
+│   │   │   │   ├── command.service.ts
+│   │   │   │   ├── file.service.ts
+│   │   │   │   ├── app.service.ts
+│   │   │   │   ├── ai.service.ts
+│   │   │   │   └── stream.service.ts
+│   │   │   │
+│   │   │   ├── websocket/
+│   │   │   │   ├── socketClient.ts
+│   │   │   │   ├── socketEvents.ts
+│   │   │   │   ├── connectionManager.ts
+│   │   │   │   ├── terminalSocket.ts
+│   │   │   │   ├── streamSocket.ts
+│   │   │   │   └── heartbeatService.ts
+│   │   │   │
+│   │   │   └── storage/
+│   │   │       ├── secureStorage.ts
+│   │   │       ├── localStorage.ts
+│   │   │       └── fileCache.ts
+│   │   │
+│   │   ├── store/
+│   │   │   ├── index.ts
+│   │   │   ├── authStore.ts
+│   │   │   ├── deviceStore.ts
+│   │   │   ├── connectionStore.ts
+│   │   │   ├── terminalStore.ts
+│   │   │   ├── fileStore.ts
+│   │   │   ├── streamStore.ts
+│   │   │   ├── aiStore.ts
+│   │   │   └── appStore.ts
+│   │   │
+│   │   ├── hooks/
+│   │   │   ├── useWebSocket.ts
+│   │   │   ├── useAuth.ts
+│   │   │   ├── useDeviceConnection.ts
+│   │   │   ├── useTerminal.ts
+│   │   │   ├── useFileTransfer.ts
+│   │   │   └── useScreenStream.ts
+│   │   │
+│   │   ├── types/
+│   │   │   ├── auth.types.ts
+│   │   │   ├── device.types.ts
+│   │   │   ├── command.types.ts
+│   │   │   ├── file.types.ts
+│   │   │   ├── stream.types.ts
+│   │   │   └── ai.types.ts
+│   │   │
+│   │   ├── utils/
+│   │   │   ├── validators.ts
+│   │   │   ├── formatters.ts
+│   │   │   ├── encryption.ts
+│   │   │   └── constants.ts
+│   │   │
+│   │   └── navigation/
+│   │       ├── AppNavigator.tsx
+│   │       ├── AuthNavigator.tsx
+│   │       ├── MainTabNavigator.tsx
+│   │       ├── types.ts
+│   │       └── linking.ts
+│   │
+│   └── __tests__/
+│       ├── screens/
+│       ├── services/
+│       └── store/
+│
+├── backend/                              # FastAPI Backend
+│   ├── .env
+│   ├── .env.example
+│   ├── requirements.txt
+│   ├── requirements-dev.txt
+│   ├── Dockerfile
+│   ├── docker-compose.yml
+│   ├── pyproject.toml
+│   │
+│   ├── app/
+│   │   ├── __init__.py
+│   │   ├── main.py
+│   │   ├── config.py
+│   │   ├── dependencies.py
+│   │   │
+│   │   ├── api/
+│   │   │   ├── __init__.py
+│   │   │   ├── router.py
+│   │   │   │
+│   │   │   ├── v1/
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── auth.py
+│   │   │   │   ├── devices.py
+│   │   │   │   ├── commands.py
+│   │   │   │   ├── files.py
+│   │   │   │   ├── apps.py
+│   │   │   │   ├── ai.py
+│   │   │   │   ├── streaming.py
+│   │   │   │   └── monitoring.py
+│   │   │   │
+│   │   │   └── websocket/
+│   │   │       ├── __init__.py
+│   │   │       ├── connection_manager.py
+│   │   │       ├── terminal_handler.py
+│   │   │       ├── stream_handler.py
+│   │   │       ├── command_handler.py
+│   │   │       └── heartbeat_handler.py
+│   │   │
+│   │   ├── core/
+│   │   │   ├── __init__.py
+│   │   │   ├── security.py
+│   │   │   ├── auth.py
+│   │   │   ├── exceptions.py
+│   │   │   ├── logging.py
+│   │   │   └── rate_limiter.py
+│   │   │
+│   │   ├── models/
+│   │   │   ├── __init__.py
+│   │   │   ├── user.py
+│   │   │   ├── device.py
+│   │   │   ├── command.py
+│   │   │   ├── session.py
+│   │   │   ├── file_transfer.py
+│   │   │   └── ai_memory.py
+│   │   │
+│   │   ├── schemas/
+│   │   │   ├── __init__.py
+│   │   │   ├── auth.py
+│   │   │   ├── device.py
+│   │   │   ├── command.py
+│   │   │   ├── file.py
+│   │   │   ├── ai.py
+│   │   │   └── streaming.py
+│   │   │
+│   │   ├── services/
+│   │   │   ├── __init__.py
+│   │   │   ├── auth_service.py
+│   │   │   ├── device_service.py
+│   │   │   ├── command_service.py
+│   │   │   ├── file_service.py
+│   │   │   ├── app_launcher_service.py
+│   │   │   ├── terminal_service.py
+│   │   │   ├── streaming_service.py
+│   │   │   └── monitoring_service.py
+│   │   │
+│   │   ├── ai/
+│   │   │   ├── __init__.py
+│   │   │   ├── orchestrator.py
+│   │   │   ├── intent_parser.py
+│   │   │   ├── task_planner.py
+│   │   │   ├── tool_executor.py
+│   │   │   ├── memory_manager.py
+│   │   │   ├── langchain_setup.py
+│   │   │   └── prompts.py
+│   │   │
+│   │   ├── db/
+│   │   │   ├── __init__.py
+│   │   │   ├── database.py
+│   │   │   ├── redis_client.py
+│   │   │   └── migrations/
+│   │   │       ├── versions/
+│   │   │       └── env.py
+│   │   │
+│   │   └── utils/
+│   │       ├── __init__.py
+│   │       ├── validators.py
+│   │       ├── encryption.py
+│   │       ├── helpers.py
+│   │       └── websocket_utils.py
+│   │
+│   └── tests/
+│       ├── conftest.py
+│       ├── test_api/
+│       ├── test_services/
+│       └── test_websocket/
+│
+├── desktop-agent/                        # Python Desktop Agent (PC App)
+│   ├── .env
+│   ├── requirements.txt
+│   ├── setup.py
+│   ├── pyproject.toml
+│   ├── Dockerfile
+│   │
+│   ├── agent/
+│   │   ├── __init__.py
+│   │   ├── main.py                     # Entry point
+│   │   ├── config.py
+│   │   ├── logger.py
+│   │   │
+│   │   ├── connection/
+│   │   │   ├── __init__.py
+│   │   │   ├── websocket_client.py
+│   │   │   ├── connection_manager.py
+│   │   │   ├── heartbeat.py
+│   │   │   ├── reconnection_handler.py
+│   │   │   └── device_info.py
+│   │   │
+│   │   ├── automation/
+│   │   │   ├── __init__.py
+│   │   │   ├── mouse_controller.py
+│   │   │   ├── keyboard_controller.py
+│   │   │   ├── app_launcher.py
+│   │   │   ├── window_manager.py
+│   │   │   └── hotkey_manager.py
+│   │   │
+│   │   ├── terminal/
+│   │   │   ├── __init__.py
+│   │   │   ├── command_executor.py
+│   │   │   ├── shell_handler.py
+│   │   │   ├── process_manager.py
+│   │   │   ├── output_streamer.py
+│   │   │   └── code_runner.py
+│   │   │
+│   │   ├── streaming/
+│   │   │   ├── __init__.py
+│   │   │   ├── screen_capturer.py
+│   │   │   ├── frame_encoder.py
+│   │   │   ├── stream_sender.py
+│   │   │   ├── quality_optimizer.py
+│   │   │   └── multi_monitor.py
+│   │   │
+│   │   ├── files/
+│   │   │   ├── __init__.py
+│   │   │   ├── file_manager.py
+│   │   │   ├── file_uploader.py
+│   │   │   ├── file_downloader.py
+│   │   │   ├── file_watcher.py
+│   │   │   └── directory_browser.py
+│   │   │
+│   │   ├── system/
+│   │   │   ├── __init__.py
+│   │   │   ├── system_monitor.py
+│   │   │   ├── resource_tracker.py
+│   │   │   ├── process_monitor.py
+│   │   │   ├── network_monitor.py
+│   │   │   └── power_manager.py
+│   │   │
+│   │   ├── security/
+│   │   │   ├── __init__.py
+│   │   │   ├── authenticator.py
+│   │   │   ├── permission_checker.py
+│   │   │   ├── command_sanitizer.py
+│   │   │   ├── encryption.py
+│   │   │   └── audit_logger.py
+│   │   │
+│   │   └── utils/
+│   │       ├── __init__.py
+│   │       ├── helpers.py
+│   │       ├── validators.py
+│   │       └── constants.py
+│   │
+│   ├── installers/
+│   │   ├── windows_installer.ps1
+│   │   ├── mac_installer.sh
+│   │   ├── linux_installer.sh
+│   │   └── permissions_setup.py
+│   │
+│   └── tests/
+│       ├── test_automation/
+│       ├── test_terminal/
+│       ├── test_streaming/
+│       └── test_files/
+│
+├── shared/                               # Shared code between services
+│   ├── types/
+│   │   ├── events.ts
+│   │   ├── commands.ts
+│   │   └── models.ts
+│   │
+│   └── utils/
+│       ├── encryption.ts
+│       └── validators.ts
+│
+├── infrastructure/                       # DevOps & Deployment
+│   ├── docker/
+│   │   ├── backend.Dockerfile
+│   │   ├── desktop-agent.Dockerfile
+│   │   ├── nginx.conf
+│   │   └── docker-compose.prod.yml
+│   │
+│   ├── kubernetes/
+│   │   ├── deployment.yaml
+│   │   ├── service.yaml
+│   │   ├── ingress.yaml
+│   │   └── configmap.yaml
+│   │
+│   ├── monitoring/
+│   │   ├── prometheus.yml
+│   │   ├── grafana-dashboard.json
+│   │   └── alerts.yml
+│   │
+│   └── scripts/
+│       ├── deploy.sh
+│       ├── backup.sh
+│       └── healthcheck.sh
+│
+├── docs/                                 # Documentation
+│   ├── API.md
+│   ├── WEBSOCKET_EVENTS.md
+│   ├── DEPLOYMENT.md
+│   ├── SECURITY.md
+│   └── USER_GUIDE.md
+│
+├── .github/
+│   └── workflows/
+│       ├── backend-ci.yml
+│       ├── mobile-ci.yml
+│       └── desktop-agent-ci.yml
+│
+├── .gitignore
+├── README.md
+├── LICENSE
+└── docker-compose.yml

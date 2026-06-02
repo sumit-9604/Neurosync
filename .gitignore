@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+
+node_modules/
+.next/
+
+.env
+.env.local
+
+venv/
+.venv/
+
+dist/
+build/
+
+coverage/
