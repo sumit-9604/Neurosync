@@ -1,62 +1,261 @@
 import pyautogui
+import pyperclip
+import platform
+import time
+import logging
+from typing import Optional
+
+pyautogui.FAILSAFE = False
+pyautogui.PAUSE = 0.05           
+
+logger = logging.getLogger(__name__)
 
 
 class MouseController:
+    """
+    Full mouse control — move, click, drag, scroll, multi-monitor aware.
+    All methods return a standard {"status": ...} dict.
+    """
+
+    _position_history: list[tuple[int, int]] = []
+    MAX_HISTORY = 50
+
+    # ── Internal ──────────────────────────────────────────────────
+
+    @classmethod
+    def _record(cls, x: int, y: int):
+        cls._position_history.append((x, y))
+        if len(cls._position_history) > cls.MAX_HISTORY:
+            cls._position_history.pop(0)
 
     @staticmethod
-    def move(x: int, y: int):
-
-        pyautogui.moveTo(x, y)
-
-        return {
-            "status": "success",
-            "x": x,
-            "y": y
-        }
+    def _screen_size() -> tuple[int, int]:
+        return pyautogui.size()
 
     @staticmethod
-    def click():
+    def _clamp(x: int, y: int) -> tuple[int, int]:
+        w, h = pyautogui.size()
+        return max(0, min(x, w - 1)), max(0, min(y, h - 1))
 
-        pyautogui.click()
+    # ── Movement ──────────────────────────────────────────────────
 
-        return {
-            "status": "success"
-        }
+    @classmethod
+    def move(cls, x: int, y: int, duration: float = 0.2) -> dict:
+        """Move mouse to absolute position (x, y)."""
+        x, y = cls._clamp(x, y)
+        try:
+            pyautogui.moveTo(x, y, duration=duration)
+            cls._record(x, y)
+            return {"status": "success", "x": x, "y": y}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
 
-    @staticmethod
-    def right_click():
+    @classmethod
+    def move_relative(cls, dx: int, dy: int, duration: float = 0.2) -> dict:
+        """Move mouse by (dx, dy) relative to current position."""
+        try:
+            cx, cy = pyautogui.position()
+            pyautogui.moveRel(dx, dy, duration=duration)
+            nx, ny = pyautogui.position()
+            cls._record(nx, ny)
+            return {"status": "success", "x": nx, "y": ny, "moved_by": {"dx": dx, "dy": dy}}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
 
-        pyautogui.rightClick()
+    @classmethod
+    def move_smooth(cls, x: int, y: int, steps: int = 20) -> dict:
+        """
+        Move mouse smoothly using a bezier-like curve.
+        More human-like than a straight moveTo.
+        """
+        import random
+        x, y = cls._clamp(x, y)
+        try:
+            cx, cy = pyautogui.position()
+            for i in range(1, steps + 1):
+                t = i / steps
+                # ease in-out cubic
+                t_ease = t * t * (3 - 2 * t)
+                nx = int(cx + (x - cx) * t_ease)
+                ny = int(cy + (y - cy) * t_ease)
+                pyautogui.moveTo(nx, ny, duration=0)
+                time.sleep(0.008 + random.uniform(0, 0.004))
+            cls._record(x, y)
+            return {"status": "success", "x": x, "y": y}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
 
-        return {
-            "status": "success"
-        }
+    # ── Clicks ────────────────────────────────────────────────────
 
-    @staticmethod
-    def double_click():
+    @classmethod
+    def click(cls, x: int = None, y: int = None, button: str = "left") -> dict:
+        """Left/right/middle click at current or given position."""
+        try:
+            if x is not None and y is not None:
+                x, y = cls._clamp(x, y)
+                pyautogui.click(x, y, button=button)
+                cls._record(x, y)
+            else:
+                pyautogui.click(button=button)
+            pos = pyautogui.position()
+            return {"status": "success", "button": button, "x": pos.x, "y": pos.y}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
 
-        pyautogui.doubleClick()
+    @classmethod
+    def right_click(cls, x: int = None, y: int = None) -> dict:
+        return cls.click(x, y, button="right")
 
-        return {
-            "status": "success"
-        }
+    @classmethod
+    def middle_click(cls, x: int = None, y: int = None) -> dict:
+        return cls.click(x, y, button="middle")
 
-    @staticmethod
-    def scroll(amount: int):
+    @classmethod
+    def double_click(cls, x: int = None, y: int = None) -> dict:
+        try:
+            if x is not None and y is not None:
+                x, y = cls._clamp(x, y)
+                pyautogui.doubleClick(x, y)
+                cls._record(x, y)
+            else:
+                pyautogui.doubleClick()
+            pos = pyautogui.position()
+            return {"status": "success", "x": pos.x, "y": pos.y}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
 
-        pyautogui.scroll(amount)
+    @classmethod
+    def triple_click(cls, x: int = None, y: int = None) -> dict:
+        """Triple-click — useful for selecting a word or line."""
+        try:
+            if x is not None and y is not None:
+                x, y = cls._clamp(x, y)
+                pyautogui.click(x, y, clicks=3, interval=0.05)
+                cls._record(x, y)
+            else:
+                pyautogui.click(clicks=3, interval=0.05)
+            return {"status": "success"}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
 
-        return {
-            "status": "success",
-            "amount": amount
-        }
+    # ── Drag ──────────────────────────────────────────────────────
 
-    @staticmethod
-    def get_position():
+    @classmethod
+    def drag(cls, x1: int, y1: int, x2: int, y2: int, duration: float = 0.4, button: str = "left") -> dict:
+        """Click-drag from (x1,y1) to (x2,y2)."""
+        x1, y1 = cls._clamp(x1, y1)
+        x2, y2 = cls._clamp(x2, y2)
+        try:
+            pyautogui.mouseDown(x1, y1, button=button)
+            time.sleep(0.05)
+            pyautogui.moveTo(x2, y2, duration=duration)
+            pyautogui.mouseUp(button=button)
+            cls._record(x2, y2)
+            return {"status": "success", "from": {"x": x1, "y": y1}, "to": {"x": x2, "y": y2}}
+        except Exception as e:
+            try:
+                pyautogui.FAILSAFE=False
+                pyautogui.mouseUp()
+                pyautogui.FAILSAFE = False
+            except Exception:
+                pass
+            return {"status": "error", "message": str(e)}
+            
 
+    @classmethod
+    def drag_relative(cls, dx: int, dy: int, duration: float = 0.4) -> dict:
+        """Drag from current position by (dx, dy)."""
+        cx, cy = pyautogui.position()
+        return cls.drag(cx, cy, cx + dx, cy + dy, duration)
+
+    # ── Scroll ────────────────────────────────────────────────────
+
+    @classmethod
+    def scroll(cls, amount: int, x: int = None, y: int = None) -> dict:
+        """
+        Scroll vertically. Positive = up, negative = down.
+        Optionally move to (x,y) before scrolling.
+        """
+        try:
+            if x is not None and y is not None:
+                x, y = cls._clamp(x, y)
+                pyautogui.moveTo(x, y)
+            pyautogui.scroll(amount)
+            return {"status": "success", "amount": amount}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    @classmethod
+    def scroll_horizontal(cls, amount: int) -> dict:
+        """Scroll horizontally (positive = right, negative = left)."""
+        try:
+            pyautogui.hscroll(amount)
+            return {"status": "success", "amount": amount}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    # ── Mouse button hold ─────────────────────────────────────────
+
+    @classmethod
+    def mouse_down(cls, button: str = "left", x: int = None, y: int = None) -> dict:
+        try:
+            if x is not None and y is not None:
+                x, y = cls._clamp(x, y)
+                pyautogui.mouseDown(x, y, button=button)
+            else:
+                pyautogui.mouseDown(button=button)
+            return {"status": "success", "button": button, "held": True}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    @classmethod
+    def mouse_up(cls, button: str = "left") -> dict:
+        try:
+            pyautogui.mouseUp(button=button)
+            return {"status": "success", "button": button, "held": False}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    # ── Position / info ───────────────────────────────────────────
+
+    @classmethod
+    def get_position(cls) -> dict:
         x, y = pyautogui.position()
+        return {"status": "success", "x": x, "y": y}
 
-        return {
-            "x": x,
-            "y": y
+    @classmethod
+    def get_screen_size(cls) -> dict:
+        w, h = pyautogui.size()
+        return {"status": "success", "width": w, "height": h}
+
+    @classmethod
+    def get_history(cls) -> dict:
+        return {"status": "success", "history": cls._position_history}
+
+    @classmethod
+    def move_to_center(cls) -> dict:
+        w, h = pyautogui.size()
+        return cls.move(w // 2, h // 2)
+
+    @classmethod
+    def move_to_corner(cls, corner: str = "top-left") -> dict:
+        w, h = pyautogui.size()
+        positions = {
+            "top-left":     (5, 5),
+            "top-right":    (w - 5, 5),
+            "bottom-left":  (5, h - 5),
+            "bottom-right": (w - 5, h - 5),
         }
+        if corner not in positions:
+            return {"status": "error", "message": f"Unknown     corner: {corner}"}
+        x, y = positions[corner]
+        return cls.move(x, y)
+
+    @classmethod
+    def pixel_color(cls, x: int, y: int) -> dict:
+        """Get the RGB color of a screen pixel."""
+        try:
+            r, g, b = pyautogui.pixel(x, y)
+            return {"status": "success", "x": x, "y": y, "rgb": {"r": r, "g": g, "b": b}, "hex": f"#{r:02x}{g:02x}{b:02x}"}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
