@@ -113,6 +113,7 @@ class WebSocketClient:
             ping_timeout=10,
             close_timeout=5,
         )
+        self._conn_manager.set_websocket(self._websocket)
         logger.info("WebSocket connected")
 
         # Send authentication / device info immediately
@@ -123,7 +124,7 @@ class WebSocketClient:
         info = get_device_info()
         info["type"] = "agent_register"
         info["device_id"] = self.device_id
-        await self.send(info)
+        await self._websocket.send(json.dumps(info))
         logger.info(f"Device registered: {self.device_id}")
 
     async def _on_connected(self):
@@ -163,14 +164,14 @@ class WebSocketClient:
                 message = await self._websocket.recv()
                 data = json.loads(message)
 
-                # Handle heartbeat ack if needed (optional)
-                if data.get("type") == "heartbeat_ack":
-                    logger.debug("Heartbeat ACK received")
+                msg_type = data.get("type")
+                if msg_type == "heartbeat_ack":
+                    logger.debug("heartbeat ACK recieved")
                     continue
-
-                # Treat everything else as a command
-                await self._handle_command(data)
-
+                elif msg_type == "command":
+                    await self._handle_command(data)
+                else:
+                    logger.debug(f"Ignoring non command message : {msg_type}")
             except asyncio.CancelledError:
                 break
             except ConnectionClosed as e:
