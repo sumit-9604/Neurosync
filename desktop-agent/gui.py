@@ -11,7 +11,10 @@ import asyncio
 import logging
 from datetime import datetime
 
-import psutil
+try:
+    import psutil
+except ImportError:
+    psutil = None
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout,
     QHBoxLayout, QLabel, QPushButton, QTextEdit,

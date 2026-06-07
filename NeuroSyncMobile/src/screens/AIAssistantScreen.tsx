@@ -1,5 +1,6 @@
-/* eslint-disable react-native/no-inline-styles */
-import React, {useState, useRef} from 'react';
+// src/screens/AIAssistantScreen.tsx — JARVIS HUD theme
+
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -11,7 +12,9 @@ import {
   Platform,
   ActivityIndicator,
 } from 'react-native';
-import {api} from '../services/apiClient';
+import { api } from '../services/apiClient';
+import { Colors, Fonts, Spacing, Radius } from '../theme';
+import { CornerBrackets, ScanlineOverlay, HudTopBar, HudDivider } from '../components/HudComponents';
 
 interface Message {
   id: string;
@@ -21,18 +24,18 @@ interface Message {
 }
 
 const SUGGESTIONS = [
-  'Open Chrome',
-  'Take a screenshot',
-  'What is my CPU usage?',
-  'Open Notepad and type Hello',
+  'OPEN CHROME',
+  'SCREENSHOT',
+  'CPU USAGE?',
+  'OPEN NOTEPAD',
 ];
 
-export default function AIAssistantScreen({navigation}: any) {
+export default function AIAssistantScreen({ navigation }: any) {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '0',
       role: 'assistant',
-      text: 'Hi! I am your NeuroSync AI assistant. Tell me what you want to do on SUMIT-PC and I will handle it.',
+      text: 'NEUROSYNC AI ONLINE. State your command for SUMIT-PC.',
       timestamp: new Date().toLocaleTimeString(),
     },
   ]);
@@ -41,77 +44,68 @@ export default function AIAssistantScreen({navigation}: any) {
   const listRef = useRef<FlatList>(null);
 
   const sendMessage = async (text?: string) => {
-    const messageText = text || input.trim();
-    if (!messageText) return;
+    const msg = text || input.trim();
+    if (!msg) return;
 
-    const userMessage: Message = {
+    const userMsg: Message = {
       id: Date.now().toString(),
       role: 'user',
-      text: messageText,
+      text: msg,
       timestamp: new Date().toLocaleTimeString(),
     };
-
-    setMessages(prev => [...prev, userMessage]);
+    setMessages(prev => [...prev, userMsg]);
     setInput('');
     setLoading(true);
-
-    setTimeout(() => listRef.current?.scrollToEnd({animated: true}), 100);
+    setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
 
     try {
-      const response = await api.post('/ai/command', {
-        message: messageText,
-        device_id: 'sumit-pc',
-      });
-
-      const assistantMessage: Message = {
+      const res = await api.post('/ai/command', { message: msg, device_id: 'sumit-pc' });
+      const reply: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        text: response.data.reply || 'Command executed successfully!',
+        text: res.data.reply || 'COMMAND EXECUTED.',
         timestamp: new Date().toLocaleTimeString(),
       };
-      setMessages(prev => [...prev, assistantMessage]);
+      setMessages(prev => [...prev, reply]);
     } catch {
-      const errorMessage: Message = {
+      setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        text: 'Could not reach SUMIT-PC. Make sure the desktop agent is running and backend is connected.',
+        text: 'ERR: CANNOT REACH SUMIT-PC. VERIFY DESKTOP AGENT IS RUNNING.',
         timestamp: new Date().toLocaleTimeString(),
-      };
-      setMessages(prev => [...prev, errorMessage]);
+      }]);
     } finally {
       setLoading(false);
-      setTimeout(() => listRef.current?.scrollToEnd({animated: true}), 100);
+      setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
     }
   };
 
-  const renderMessage = ({item}: {item: Message}) => (
-    <View
-      style={[
-        styles.messageBubble,
-        item.role === 'user' ? styles.userBubble : styles.assistantBubble,
-      ]}>
-      <Text style={[styles.messageText, item.role === 'user' && {color: '#000000'}]}>
-        {item.text}
-      </Text>
-      <Text style={[styles.timestamp, item.role === 'user' && {color: '#00000066'}]}>
-        {item.timestamp}
-      </Text>
-    </View>
-  );
+  const renderMessage = ({ item }: { item: Message }) => {
+    const isUser = item.role === 'user';
+    return (
+      <View style={[styles.bubble, isUser ? styles.userBubble : styles.aiBubble]}>
+        {!isUser && <View style={styles.aiAccent} />}
+        <Text style={styles.bubbleRole}>{isUser ? 'YOU' : 'NEUROSYNC AI'}</Text>
+        <Text style={[styles.bubbleText, isUser && styles.userText]}>{item.text}</Text>
+        <Text style={styles.bubbleTime}>{item.timestamp}</Text>
+      </View>
+    );
+  };
 
   return (
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <ScanlineOverlay />
+      <CornerBrackets />
+
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backText}>← Back</Text>
-        </TouchableOpacity>
-        <Text style={styles.title}>AI Assistant</Text>
-        <View style={styles.onlineIndicator}>
-          <View style={styles.onlineDot} />
-          <Text style={styles.onlineText}>SUMIT-PC</Text>
-        </View>
+        <HudTopBar
+          title="AI ASSISTANT"
+          onBack={() => navigation.goBack()}
+          rightLabel="SUMIT-PC"
+          pulse
+        />
       </View>
 
       <FlatList
@@ -120,45 +114,47 @@ export default function AIAssistantScreen({navigation}: any) {
         keyExtractor={item => item.id}
         renderItem={renderMessage}
         contentContainerStyle={styles.messageList}
-        onContentSizeChange={() => listRef.current?.scrollToEnd({animated: true})}
+        onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
       />
 
       {loading && (
-        <View style={styles.typingIndicator}>
-          <ActivityIndicator size="small" color="#00FF66" />
-          <Text style={styles.typingText}>Processing command...</Text>
+        <View style={styles.typingRow}>
+          <ActivityIndicator size="small" color={Colors.cyan} />
+          <Text style={styles.typingText}>PROCESSING COMMAND...</Text>
         </View>
       )}
 
-      {/* Suggestion chips */}
+      {/* Suggestion chips — only before first user message */}
       {messages.length <= 1 && (
-        <View style={styles.suggestions}>
+        <View style={styles.chips}>
           {SUGGESTIONS.map(s => (
-            <TouchableOpacity
-              key={s}
-              style={styles.chip}
-              onPress={() => sendMessage(s)}>
+            <TouchableOpacity key={s} style={styles.chip} onPress={() => sendMessage(s)}>
               <Text style={styles.chipText}>{s}</Text>
             </TouchableOpacity>
           ))}
         </View>
       )}
 
+      <HudDivider />
+
+      {/* Input row */}
       <View style={styles.inputRow}>
+        <Text style={styles.prompt}>›_</Text>
         <TextInput
           style={styles.input}
-          placeholder="Tell AI what to do..."
-          placeholderTextColor="#555"
+          placeholder="Enter command..."
+          placeholderTextColor={Colors.textMuted}
           value={input}
           onChangeText={setInput}
           multiline
           onSubmitEditing={() => sendMessage()}
+          blurOnSubmit={false}
         />
         <TouchableOpacity
-          style={[styles.sendBtn, !input.trim() && styles.sendBtnDisabled]}
+          style={[styles.sendBtn, (!input.trim() || loading) && styles.sendBtnOff]}
           onPress={() => sendMessage()}
           disabled={!input.trim() || loading}>
-          <Text style={styles.sendBtnText}>↑</Text>
+          <Text style={styles.sendBtnText}>TX</Text>
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
@@ -166,27 +162,145 @@ export default function AIAssistantScreen({navigation}: any) {
 }
 
 const styles = StyleSheet.create({
-  container: {flex: 1, backgroundColor: '#121212'},
-  header: {paddingTop: 60, paddingHorizontal: 20, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: '#1E1E1E'},
-  backText: {color: '#00FF66', fontSize: 16, marginBottom: 8},
-  title: {fontSize: 22, fontWeight: 'bold', color: '#FFFFFF'},
-  onlineIndicator: {flexDirection: 'row', alignItems: 'center', marginTop: 4},
-  onlineDot: {width: 8, height: 8, borderRadius: 4, backgroundColor: '#00FF66', marginRight: 6},
-  onlineText: {color: '#888', fontSize: 13},
-  messageList: {padding: 16, paddingBottom: 8},
-  messageBubble: {maxWidth: '80%', padding: 14, borderRadius: 16, marginBottom: 12},
-  userBubble: {backgroundColor: '#00FF66', alignSelf: 'flex-end', borderBottomRightRadius: 4},
-  assistantBubble: {backgroundColor: '#1E1E1E', alignSelf: 'flex-start', borderBottomLeftRadius: 4, borderWidth: 1, borderColor: '#2A2A2A'},
-  messageText: {fontSize: 15, color: '#000000'},
-  timestamp: {fontSize: 11, color: '#00000066', marginTop: 4, alignSelf: 'flex-end'},
-  typingIndicator: {flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingBottom: 8, gap: 8},
-  typingText: {color: '#555', fontSize: 13},
-  suggestions: {flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, gap: 8, marginBottom: 8},
-  chip: {backgroundColor: '#1E1E1E', borderWidth: 1, borderColor: '#333', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20},
-  chipText: {color: '#888', fontSize: 13},
-  inputRow: {flexDirection: 'row', padding: 16, gap: 10, borderTopWidth: 1, borderTopColor: '#1E1E1E'},
-  input: {flex: 1, backgroundColor: '#1E1E1E', borderWidth: 1, borderColor: '#333', borderRadius: 24, paddingHorizontal: 16, paddingVertical: 10, color: '#FFFFFF', fontSize: 15, maxHeight: 100},
-  sendBtn: {width: 46, height: 46, borderRadius: 23, backgroundColor: '#00FF66', justifyContent: 'center', alignItems: 'center'},
-  sendBtnDisabled: {backgroundColor: '#1E1E1E', borderWidth: 1, borderColor: '#333'},
-  sendBtnText: {color: '#000000', fontSize: 20, fontWeight: 'bold'},
+  container: { flex: 1, backgroundColor: Colors.bg },
+  header: {
+    paddingHorizontal: Spacing.lg,
+    paddingTop: 56,
+  },
+
+  messageList: {
+    padding: Spacing.lg,
+    paddingTop: Spacing.sm,
+    gap: Spacing.sm,
+  },
+
+  bubble: {
+    maxWidth: '85%',
+    borderRadius: Radius.md,
+    padding: Spacing.md,
+    borderWidth: 0.5,
+    overflow: 'hidden',
+    marginBottom: Spacing.sm,
+  },
+  aiBubble: {
+    backgroundColor: Colors.bgCard,
+    borderColor: Colors.cyanBorder,
+    alignSelf: 'flex-start',
+  },
+  userBubble: {
+    backgroundColor: `${Colors.cyan}18`,
+    borderColor: `${Colors.cyan}55`,
+    alignSelf: 'flex-end',
+  },
+  aiAccent: {
+    position: 'absolute',
+    left: 0, top: 0, bottom: 0,
+    width: 2,
+    backgroundColor: Colors.cyan,
+  },
+  bubbleRole: {
+    color: Colors.textMuted,
+    fontSize: 8,
+    letterSpacing: 2,
+    fontFamily: Fonts.uiReg,
+    marginBottom: 4,
+  },
+  bubbleText: {
+    color: Colors.textSecondary,
+    fontSize: 13,
+    fontFamily: Fonts.uiReg,
+    lineHeight: 18,
+    letterSpacing: 0.3,
+  },
+  userText: { color: Colors.cyan },
+  bubbleTime: {
+    color: Colors.textMuted,
+    fontSize: 8,
+    fontFamily: Fonts.hud,
+    marginTop: 5,
+    textAlign: 'right',
+  },
+
+  typingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: Spacing.sm,
+  },
+  typingText: {
+    color: Colors.textMuted,
+    fontSize: 9,
+    letterSpacing: 2,
+    fontFamily: Fonts.hud,
+  },
+
+  chips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: Spacing.lg,
+    gap: Spacing.sm,
+    paddingBottom: Spacing.sm,
+  },
+  chip: {
+    backgroundColor: Colors.bgCard,
+    borderWidth: 0.5,
+    borderColor: Colors.cyanBorder,
+    borderRadius: Radius.pill,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  chipText: {
+    color: Colors.textSecondary,
+    fontSize: 9,
+    letterSpacing: 2,
+    fontFamily: Fonts.ui,
+  },
+
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    gap: Spacing.sm,
+  },
+  prompt: {
+    color: Colors.cyan,
+    fontSize: 14,
+    fontFamily: Fonts.hud,
+  },
+  input: {
+    flex: 1,
+    backgroundColor: Colors.bgCard,
+    borderWidth: 0.5,
+    borderColor: Colors.cyanBorder,
+    borderRadius: Radius.sm,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    color: Colors.textPrimary,
+    fontSize: 13,
+    fontFamily: Fonts.hud,
+    maxHeight: 90,
+    letterSpacing: 0.5,
+  },
+  sendBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: Radius.sm,
+    backgroundColor: `${Colors.cyan}22`,
+    borderWidth: 1,
+    borderColor: Colors.cyan,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  sendBtnOff: {
+    backgroundColor: Colors.bgCard,
+    borderColor: Colors.cyanBorder,
+  },
+  sendBtnText: {
+    color: Colors.cyan,
+    fontSize: 11,
+    letterSpacing: 2,
+    fontFamily: Fonts.ui,
+  },
 });

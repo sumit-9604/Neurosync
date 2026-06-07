@@ -1,0 +1,17 @@
+{
+  "migIndex": 1,
+  "data": [
+    {
+      "path": "assets/fonts/Rajdhani-Regular.ttf",
+      "sha1": "73f086047e7ff11a3087cd481f133f9080a9d954"
+    },
+    {
+      "path": "assets/fonts/Rajdhani-SemiBold.ttf",
+      "sha1": "0fcd923c13976ebcc87b40237e3c5a053a347629"
+    },
+    {
+      "path": "assets/fonts/ShareTechMono-Regular.ttf",
+      "sha1": "dd900c3c462c68eea82a0ab5d34d9292a8a797d3"
+    }
+  ]
+}

@@ -1,67 +1,227 @@
-import React from 'react';
-import {Text, TouchableOpacity, StyleSheet, ScrollView, Alert} from 'react-native';
-import {sendCommand} from '../services/commandService';
+// src/screens/RemoteDashboardScreen.tsx — JARVIS HUD theme
 
-const commands = [
-  {id: 'notepad', label: '📝 Open Notepad', color: '#1E90FF'},
-  {id: 'chrome', label: '🌐 Open Chrome', color: '#FF6B35'},
-  {id: 'vscode', label: '💻 Open VS Code', color: '#007ACC'},
-  {id: 'shutdown', label: '⛔ Shutdown', color: '#FF4444'},
-  {id: 'restart', label: '🔄 Restart', color: '#FFA500'},
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+  Alert,
+} from 'react-native';
+import { sendCommand } from '../services/commandService';
+import { Colors, Fonts, Spacing, Radius } from '../theme';
+import { CornerBrackets, ScanlineOverlay, HudTopBar, HudDivider } from '../components/HudComponents';
+
+interface Command {
+  label: string;
+  action: string;
+  icon: string;
+  color?: string;
+}
+
+const LAUNCH_COMMANDS: Command[] = [
+  { label: 'Open Notepad', action: 'notepad', icon: '📝', color: Colors.cyan },
+  { label: 'Open Chrome',  action: 'chrome',  icon: '🌐', color: Colors.amber },
+  { label: 'Open VS Code', action: 'vscode',  icon: '💻', color: Colors.blue },
 ];
 
-export default function RemoteDashboardScreen({navigation}: any) {
-  const handleCommand = async (commandId: string) => {
+const POWER_COMMANDS: Command[] = [
+  { label: 'Shutdown', action: 'shutdown', icon: '⏻', color: Colors.red },
+  { label: 'Restart',  action: 'restart',  icon: '↺', color: Colors.amber },
+];
+
+function CommandBtn({ item, onPress }: { item: Command; onPress: () => void }) {
+  const color = item.color ?? Colors.cyan;
+  return (
+    <TouchableOpacity
+      style={[styles.cmdBtn, { borderColor: `${color}33` }]}
+      onPress={onPress}
+      activeOpacity={0.7}>
+      <View style={[styles.cmdAccent, { backgroundColor: color }]} />
+      <Text style={styles.cmdIcon}>{item.icon}</Text>
+      <Text style={styles.cmdLabel}>{item.label}</Text>
+      <Text style={[styles.cmdArrow, { color: `${color}66` }]}>→</Text>
+    </TouchableOpacity>
+  );
+}
+
+export default function RemoteDashboardScreen({ navigation }: any) {
+  const [lastCmd, setLastCmd] = useState<string | null>(null);
+  const [status, setStatus] = useState('READY');
+
+  const handleCommand = async (action: string, label: string) => {
+    if (action === 'shutdown' || action === 'restart') {
+      Alert.alert(
+        `CONFIRM ${label.toUpperCase()}`,
+        `Send ${label} command to SUMIT-PC?`,
+        [
+          { text: 'CANCEL', style: 'cancel' },
+          {
+            text: 'EXECUTE',
+            style: 'destructive',
+            onPress: () => execute(action, label),
+          },
+        ],
+      );
+      return;
+    }
+    execute(action, label);
+  };
+
+  const execute = async (action: string, label: string) => {
     try {
-      await sendCommand('sumit-pc', commandId);
-      Alert.alert('Success', `Command "${commandId}" sent!`);
+      setStatus('TRANSMITTING...');
+      setLastCmd(label);
+      await sendCommand('sumit-pc', action);
+      setStatus('COMMAND SENT');
+      setTimeout(() => setStatus('READY'), 2000);
     } catch {
-      Alert.alert('Error', 'Could not reach the device. Is the backend running?');
+      setStatus('ERR: DEVICE UNREACHABLE');
+      setTimeout(() => setStatus('READY'), 3000);
     }
   };
 
   return (
-    <ScrollView style={styles.container}>
-      <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-        <Text style={styles.backText}>← Back</Text>
-      </TouchableOpacity>
+    <View style={styles.container}>
+      <ScanlineOverlay />
+      <CornerBrackets />
 
-      <Text style={styles.title}>Remote Dashboard</Text>
-      <Text style={styles.subtitle}>SUMIT-PC • Windows 11</Text>
+      <HudTopBar
+        title="REMOTE DASHBOARD"
+        onBack={() => navigation.goBack()}
+        rightLabel="SUMIT-PC"
+        pulse
+      />
 
-      <Text style={styles.sectionLabel}>LAUNCH APPS</Text>
-      {commands.slice(0, 3).map(cmd => (
-        <TouchableOpacity
-          key={cmd.id}
-          style={[styles.commandBtn, {borderLeftColor: cmd.color}]}
-          onPress={() => handleCommand(cmd.id)}>
-          <Text style={styles.commandText}>{cmd.label}</Text>
-          <Text style={styles.arrow}>→</Text>
-        </TouchableOpacity>
-      ))}
+      {/* Status bar */}
+      <View style={styles.statusBar}>
+        <View style={styles.statusLeft}>
+          <Text style={styles.statusKey}>STATUS</Text>
+          <Text style={[
+            styles.statusVal,
+            status.startsWith('ERR') && { color: Colors.red },
+            status === 'COMMAND SENT' && { color: Colors.cyan },
+          ]}>{status}</Text>
+        </View>
+        {lastCmd && (
+          <View style={styles.statusRight}>
+            <Text style={styles.statusKey}>LAST CMD</Text>
+            <Text style={[styles.statusVal, { color: Colors.cyan }]}>{lastCmd}</Text>
+          </View>
+        )}
+      </View>
 
-      <Text style={styles.sectionLabel}>POWER</Text>
-      {commands.slice(3).map(cmd => (
-        <TouchableOpacity
-          key={cmd.id}
-          style={[styles.commandBtn, {borderLeftColor: cmd.color}]}
-          onPress={() => handleCommand(cmd.id)}>
-          <Text style={styles.commandText}>{cmd.label}</Text>
-          <Text style={styles.arrow}>→</Text>
-        </TouchableOpacity>
-      ))}
-    </ScrollView>
+      <HudDivider />
+
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+
+        {/* Launch Apps */}
+        <Text style={styles.sectionLabel}>LAUNCH APPS</Text>
+        <View style={styles.cmdList}>
+          {LAUNCH_COMMANDS.map(cmd => (
+            <CommandBtn
+              key={cmd.action}
+              item={cmd}
+              onPress={() => handleCommand(cmd.action, cmd.label)}
+            />
+          ))}
+        </View>
+
+        <HudDivider style={{ marginVertical: Spacing.md }} />
+
+        {/* Power */}
+        <Text style={styles.sectionLabel}>POWER</Text>
+        <View style={styles.cmdList}>
+          {POWER_COMMANDS.map(cmd => (
+            <CommandBtn
+              key={cmd.action}
+              item={cmd}
+              onPress={() => handleCommand(cmd.action, cmd.label)}
+            />
+          ))}
+        </View>
+
+        <Text style={styles.hint}>// NETWORK ERROR = BACKEND NOT YET DEPLOYED</Text>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {flex: 1, backgroundColor: '#121212', padding: 20, paddingTop: 60},
-  backBtn: {marginBottom: 24},
-  backText: {color: '#00FF66', fontSize: 16},
-  title: {fontSize: 28, fontWeight: 'bold', color: '#FFFFFF', marginBottom: 4},
-  subtitle: {fontSize: 14, color: '#888888', marginBottom: 32},
-  sectionLabel: {fontSize: 12, color: '#555555', fontWeight: 'bold', marginBottom: 12, letterSpacing: 1},
-  commandBtn: {backgroundColor: '#1E1E1E', padding: 20, borderRadius: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, borderLeftWidth: 4},
-  commandText: {fontSize: 16, color: '#FFFFFF'},
-  arrow: {color: '#555555', fontSize: 18},
+  container: {
+    flex: 1,
+    backgroundColor: Colors.bg,
+    padding: Spacing.lg,
+    paddingTop: 56,
+  },
+  scroll: { paddingBottom: 40 },
+
+  statusBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: Spacing.sm,
+  },
+  statusLeft: { gap: 2 },
+  statusRight: { gap: 2, alignItems: 'flex-end' },
+  statusKey: {
+    color: Colors.textMuted,
+    fontSize: 8,
+    letterSpacing: 2,
+    fontFamily: Fonts.uiReg,
+  },
+  statusVal: {
+    color: Colors.textSecondary,
+    fontSize: 11,
+    fontFamily: Fonts.hud,
+    letterSpacing: 1,
+  },
+
+  sectionLabel: {
+    color: Colors.textMuted,
+    fontSize: 9,
+    letterSpacing: 3,
+    fontFamily: Fonts.uiReg,
+    marginBottom: Spacing.sm,
+  },
+
+  cmdList: { gap: Spacing.sm },
+
+  cmdBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    backgroundColor: Colors.bgCard,
+    borderWidth: 0.5,
+    borderRadius: Radius.md,
+    paddingVertical: 14,
+    paddingHorizontal: Spacing.md,
+    overflow: 'hidden',
+  },
+  cmdAccent: {
+    position: 'absolute',
+    left: 0, top: 0, bottom: 0,
+    width: 2,
+  },
+  cmdIcon: { fontSize: 18, width: 24, textAlign: 'center' },
+  cmdLabel: {
+    flex: 1,
+    color: Colors.textPrimary,
+    fontSize: 13,
+    letterSpacing: 1,
+    fontFamily: Fonts.ui,
+  },
+  cmdArrow: {
+    fontSize: 14,
+    fontFamily: Fonts.hud,
+  },
+
+  hint: {
+    color: Colors.textMuted,
+    fontSize: 9,
+    letterSpacing: 1,
+    fontFamily: Fonts.hud,
+    textAlign: 'center',
+    marginTop: Spacing.xl,
+  },
 });

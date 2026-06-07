@@ -1,4 +1,6 @@
-import React, {useState} from 'react';
+// src/screens/KeyboardScreen.tsx — JARVIS HUD theme
+
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -7,89 +9,117 @@ import {
   ScrollView,
   TextInput,
 } from 'react-native';
-import {sendCommand} from '../services/commandService';
+import { sendCommand } from '../services/commandService';
+import { Colors, Fonts, Spacing, Radius } from '../theme';
+import { CornerBrackets, ScanlineOverlay, HudTopBar, HudDivider } from '../components/HudComponents';
 
 const SPECIAL_KEYS = [
-  {label: '⌫', value: 'backspace'},
-  {label: 'Tab', value: 'tab'},
-  {label: 'Enter', value: 'enter'},
-  {label: 'Esc', value: 'escape'},
-  {label: '⬆', value: 'up'},
-  {label: '⬇', value: 'down'},
-  {label: '⬅', value: 'left'},
-  {label: '➡', value: 'right'},
-  {label: 'Win', value: 'win'},
-  {label: 'Del', value: 'delete'},
-  {label: 'Space', value: 'space'},
-  {label: 'Ctrl+C', value: 'ctrl+c'},
-  {label: 'Ctrl+V', value: 'ctrl+v'},
-  {label: 'Ctrl+Z', value: 'ctrl+z'},
-  {label: 'Alt+F4', value: 'alt+f4'},
-  {label: 'Ctrl+A', value: 'ctrl+a'},
+  { label: '⌫', value: 'backspace', color: Colors.red },
+  { label: 'TAB', value: 'tab' },
+  { label: 'ENTER', value: 'enter', color: Colors.cyan },
+  { label: 'ESC', value: 'escape', color: Colors.red },
+  { label: '▲', value: 'up' },
+  { label: '▼', value: 'down' },
+  { label: '◀', value: 'left' },
+  { label: '▶', value: 'right' },
+  { label: 'WIN', value: 'win', color: Colors.blue },
+  { label: 'DEL', value: 'delete', color: Colors.red },
+  { label: 'SPACE', value: 'space' },
+  { label: 'CTRL+C', value: 'ctrl+c', color: Colors.amber },
+  { label: 'CTRL+V', value: 'ctrl+v', color: Colors.amber },
+  { label: 'CTRL+Z', value: 'ctrl+z', color: Colors.amber },
+  { label: 'ALT+F4', value: 'alt+f4', color: Colors.red },
+  { label: 'CTRL+A', value: 'ctrl+a', color: Colors.amber },
 ];
 
-export default function KeyboardScreen({navigation}: any) {
+export default function KeyboardScreen({ navigation }: any) {
   const [text, setText] = useState('');
-  const [status, setStatus] = useState('Ready');
+  const [status, setStatus] = useState('READY');
+  const [lastKey, setLastKey] = useState('—');
 
-  const sendKey = async (key: string) => {
+  const sendKey = async (key: string, label: string) => {
     try {
-      setStatus(`Sent: ${key}`);
+      setStatus('TRANSMITTING');
+      setLastKey(label);
       await sendCommand('sumit-pc', `key:${key}`);
-      setTimeout(() => setStatus('Ready'), 1000);
+      setTimeout(() => setStatus('READY'), 800);
     } catch {
-      setStatus('Could not reach device');
+      setStatus('ERR: DEVICE UNREACHABLE');
     }
   };
 
   const sendText = async () => {
     if (!text.trim()) return;
     try {
-      setStatus(`Typing: "${text}"`);
+      setStatus(`TYPING: "${text}"`);
       await sendCommand('sumit-pc', `type:${text}`);
       setText('');
-      setTimeout(() => setStatus('Ready'), 1000);
+      setTimeout(() => setStatus('READY'), 1000);
     } catch {
-      setStatus('Could not reach device');
+      setStatus('ERR: DEVICE UNREACHABLE');
     }
   };
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-        <Text style={styles.backText}>← Back</Text>
-      </TouchableOpacity>
+      <ScanlineOverlay />
+      <CornerBrackets />
 
-      <Text style={styles.title}>Keyboard Control</Text>
-      <Text style={styles.statusText}>{status}</Text>
+      <HudTopBar
+        title="KEYBOARD"
+        onBack={() => navigation.goBack()}
+        rightLabel="SUMIT-PC"
+        pulse
+      />
 
-      {/* Type text section */}
-      <View style={styles.typeRow}>
+      {/* Status row */}
+      <View style={styles.statusRow}>
+        <Text style={styles.statusLabel}>STATUS</Text>
+        <Text style={styles.statusVal}>{status}</Text>
+        <Text style={styles.statusLabel}>LAST KEY</Text>
+        <Text style={[styles.statusVal, { color: Colors.cyan }]}>{lastKey}</Text>
+      </View>
+
+      <HudDivider />
+
+      {/* Text input */}
+      <Text style={styles.sectionLabel}>TYPE TEXT</Text>
+      <View style={styles.inputRow}>
         <TextInput
           style={styles.input}
-          placeholder="Type text to send..."
-          placeholderTextColor="#555"
+          placeholder="Enter text to type on PC..."
+          placeholderTextColor={Colors.textMuted}
           value={text}
           onChangeText={setText}
           autoCapitalize="none"
         />
-        <TouchableOpacity style={styles.sendBtn} onPress={sendText}>
-          <Text style={styles.sendBtnText}>Send</Text>
+        <TouchableOpacity
+          style={[styles.sendBtn, !text.trim() && styles.sendBtnDisabled]}
+          onPress={sendText}
+          disabled={!text.trim()}>
+          <Text style={styles.sendBtnText}>TX</Text>
         </TouchableOpacity>
       </View>
 
+      <HudDivider style={{ marginTop: Spacing.md }} />
       <Text style={styles.sectionLabel}>SPECIAL KEYS</Text>
 
       <ScrollView showsVerticalScrollIndicator={false}>
         <View style={styles.keyGrid}>
-          {SPECIAL_KEYS.map(key => (
-            <TouchableOpacity
-              key={key.value}
-              style={styles.keyBtn}
-              onPress={() => sendKey(key.value)}>
-              <Text style={styles.keyLabel}>{key.label}</Text>
-            </TouchableOpacity>
-          ))}
+          {SPECIAL_KEYS.map(key => {
+            const color = key.color ?? Colors.textPrimary;
+            const borderColor = key.color ? `${key.color}44` : Colors.cyanBorder;
+            return (
+              <TouchableOpacity
+                key={key.value}
+                style={[styles.keyBtn, { borderColor }]}
+                onPress={() => sendKey(key.value, key.label)}
+                activeOpacity={0.7}>
+                <View style={[styles.keyAccent, { backgroundColor: color }]} />
+                <Text style={[styles.keyLabel, { color }]}>{key.label}</Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
       </ScrollView>
     </View>
@@ -97,40 +127,97 @@ export default function KeyboardScreen({navigation}: any) {
 }
 
 const styles = StyleSheet.create({
-  container: {flex: 1, backgroundColor: '#121212', padding: 20, paddingTop: 60},
-  backBtn: {marginBottom: 16},
-  backText: {color: '#00FF66', fontSize: 16},
-  title: {fontSize: 24, fontWeight: 'bold', color: '#FFFFFF', marginBottom: 4},
-  statusText: {fontSize: 13, color: '#888', marginBottom: 20},
-  typeRow: {flexDirection: 'row', gap: 10, marginBottom: 24},
+  container: {
+    flex: 1,
+    backgroundColor: Colors.bg,
+    padding: Spacing.lg,
+    paddingTop: 56,
+  },
+
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginBottom: Spacing.sm,
+    flexWrap: 'wrap',
+  },
+  statusLabel: {
+    color: Colors.textMuted,
+    fontSize: 9,
+    letterSpacing: 2,
+    fontFamily: Fonts.uiReg,
+  },
+  statusVal: {
+    color: Colors.textSecondary,
+    fontSize: 10,
+    fontFamily: Fonts.hud,
+    marginRight: Spacing.sm,
+  },
+
+  sectionLabel: {
+    color: Colors.textMuted,
+    fontSize: 9,
+    letterSpacing: 3,
+    fontFamily: Fonts.uiReg,
+    marginBottom: Spacing.sm,
+  },
+
+  inputRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.sm },
   input: {
     flex: 1,
-    backgroundColor: '#1E1E1E',
-    borderWidth: 1,
-    borderColor: '#333',
-    borderRadius: 12,
-    padding: 14,
-    color: '#FFFFFF',
-    fontSize: 15,
+    backgroundColor: Colors.bgCard,
+    borderWidth: 0.5,
+    borderColor: Colors.cyanBorder,
+    borderRadius: Radius.sm,
+    padding: 12,
+    color: Colors.textPrimary,
+    fontSize: 13,
+    fontFamily: Fonts.hud,
+    letterSpacing: 0.5,
   },
   sendBtn: {
-    backgroundColor: '#00FF66',
-    borderRadius: 12,
-    paddingHorizontal: 18,
+    backgroundColor: `${Colors.cyan}22`,
+    borderWidth: 1,
+    borderColor: Colors.cyan,
+    borderRadius: Radius.sm,
+    paddingHorizontal: 16,
     justifyContent: 'center',
   },
-  sendBtnText: {color: '#000', fontWeight: 'bold', fontSize: 15},
-  sectionLabel: {fontSize: 12, color: '#555', fontWeight: 'bold', letterSpacing: 1, marginBottom: 14},
-  keyGrid: {flexDirection: 'row', flexWrap: 'wrap', gap: 10},
+  sendBtnDisabled: {
+    backgroundColor: Colors.bgCard,
+    borderColor: Colors.cyanBorder,
+  },
+  sendBtnText: {
+    color: Colors.cyan,
+    fontSize: 11,
+    letterSpacing: 2,
+    fontFamily: Fonts.ui,
+  },
+
+  keyGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
+    paddingBottom: 40,
+  },
   keyBtn: {
-    backgroundColor: '#1E1E1E',
-    borderWidth: 1,
-    borderColor: '#333',
-    borderRadius: 10,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
+    backgroundColor: Colors.bgCard,
+    borderWidth: 0.5,
+    borderRadius: Radius.sm,
+    paddingVertical: 13,
+    paddingHorizontal: 12,
     minWidth: '22%',
     alignItems: 'center',
+    overflow: 'hidden',
   },
-  keyLabel: {color: '#FFFFFF', fontSize: 14, fontWeight: '500'},
+  keyAccent: {
+    position: 'absolute',
+    left: 0, top: 0, bottom: 0,
+    width: 2,
+  },
+  keyLabel: {
+    fontSize: 11,
+    letterSpacing: 1,
+    fontFamily: Fonts.ui,
+  },
 });
