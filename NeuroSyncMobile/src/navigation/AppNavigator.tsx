@@ -10,7 +10,8 @@ import RegisterScreen from '../screens/RegisterScreen';
 import MouseControlScreen from '../screens/MouseControlScreen';
 import KeyboardScreen from '../screens/KeyboardScreen';
 import SystemMonitorScreen from '../screens/SystemMonitorScreen';
-import FileManagerScreen from '../screens/FileManagerScreen'; // Added FileManagerScreen import
+import FileManagerScreen from '../screens/FileManagerScreen';
+import AIAssistantScreen from '../screens/AIAssistantScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -28,6 +29,7 @@ export default function AppNavigator() {
         <Stack.Screen name="Keyboard" component={KeyboardScreen} />
         <Stack.Screen name="SystemMonitor" component={SystemMonitorScreen} />
         <Stack.Screen name="FileManager" component={FileManagerScreen} />
+        <Stack.Screen name="AIAssistant" component={AIAssistantScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

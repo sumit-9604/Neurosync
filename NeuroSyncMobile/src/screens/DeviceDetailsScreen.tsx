@@ -47,6 +47,11 @@ export default function DeviceDetailsScreen({navigation}: any) {
         onPress={() => navigation.navigate('FileManager')}>
         <Text style={styles.mouseBtnText}>📁 File Manager →</Text>
       </TouchableOpacity>
+      <TouchableOpacity
+        style={styles.mouseBtn}
+        onPress={() => navigation.navigate('AIAssistant')}>
+        <Text style={styles.mouseBtnText}>🤖 AI Assistant →</Text>
+      </TouchableOpacity>
     </View>
   );
 }
