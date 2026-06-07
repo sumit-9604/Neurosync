@@ -1,3 +1,4 @@
+/* eslint-disable react-native/no-inline-styles */
 import React, {useState, useEffect} from 'react';
 import {
   View,
@@ -146,11 +147,11 @@ export default function FileManagerScreen({navigation}: any) {
   );
 }
 function Separator() {
-  return <View style={styles.separator} />;
+  return <View style={{height: 1, backgroundColor: '#1E1E1E'}} />;
 }
 
 function EmptyList() {
-  return <Text style={styles.empty}>No files found</Text>;
+  return <Text style={{color: '#555', textAlign: 'center', marginTop: 60}}>No files found</Text>;
 }
 const styles = StyleSheet.create({
   container: {flex: 1, backgroundColor: '#121212', padding: 20, paddingTop: 60},
