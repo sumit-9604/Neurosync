@@ -41,6 +41,12 @@ export default function DeviceDetailsScreen({navigation}: any) {
         onPress={() => navigation.navigate('SystemMonitor')}>
         <Text style={styles.mouseBtnText}>📊 System Monitor →</Text>
       </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.mouseBtn}
+        onPress={() => navigation.navigate('FileManager')}>
+        <Text style={styles.mouseBtnText}>📁 File Manager →</Text>
+      </TouchableOpacity>
     </View>
   );
 }
