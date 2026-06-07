@@ -6,6 +6,7 @@ import LoginScreen from '../screens/LoginScreen';
 import DevicesScreen from '../screens/DevicesScreen';
 import DeviceDetailsScreen from '../screens/DeviceDetailsScreen';
 import RemoteDashboardScreen from '../screens/RemoteDashboardScreen';
+import RegisterScreen from '../screens/RegisterScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -18,6 +19,7 @@ export default function AppNavigator() {
         <Stack.Screen name="Devices" component={DevicesScreen} />
         <Stack.Screen name="DeviceDetails" component={DeviceDetailsScreen} />
         <Stack.Screen name="RemoteDashboard" component={RemoteDashboardScreen} />
+        <Stack.Screen name="Register" component={RegisterScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
