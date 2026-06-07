@@ -2,6 +2,7 @@ import React from 'react';
 import {NavigationContainer} from '@react-navigation/native';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import SplashScreen from '../screens/SplashScreen';
+import LoginScreen from '../screens/LoginScreen';
 import DevicesScreen from '../screens/DevicesScreen';
 import DeviceDetailsScreen from '../screens/DeviceDetailsScreen';
 import RemoteDashboardScreen from '../screens/RemoteDashboardScreen';
@@ -13,6 +14,7 @@ export default function AppNavigator() {
     <NavigationContainer>
       <Stack.Navigator screenOptions={{headerShown: false}}>
         <Stack.Screen name="Splash" component={SplashScreen} />
+        <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="Devices" component={DevicesScreen} />
         <Stack.Screen name="DeviceDetails" component={DeviceDetailsScreen} />
         <Stack.Screen name="RemoteDashboard" component={RemoteDashboardScreen} />
