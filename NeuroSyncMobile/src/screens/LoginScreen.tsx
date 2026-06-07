@@ -6,11 +6,21 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
+import {
+  GoogleSignin,
+  statusCodes,
+} from '@react-native-google-signin/google-signin';
+
+GoogleSignin.configure({
+  webClientId: '639946205950-mqi82vf5budradj2r9jlatfsaemkam51.apps.googleusercontent.com',
+});
 
 export default function LoginScreen({navigation}: any) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const handleEmailLogin = () => {
     if (!email || !password) {
@@ -20,9 +30,29 @@ export default function LoginScreen({navigation}: any) {
     navigation.replace('Devices');
   };
 
-  const handleGoogleLogin = () => {
-    Alert.alert('Coming Soon', 'Google Sign-In will be set up soon!');
-  };
+  const handleGoogleLogin = async () => {
+  try {
+    setLoading(true);
+    await GoogleSignin.hasPlayServices();
+    await GoogleSignin.signOut(); // force account picker every time
+    const userInfo = await GoogleSignin.signIn();
+    console.log('Google Sign-In success:', userInfo);
+    navigation.replace('Devices');
+  } catch (error: any) {
+    if (error.code === statusCodes.SIGN_IN_CANCELLED) {
+      // user cancelled — do nothing
+    } else if (error.code === statusCodes.IN_PROGRESS) {
+      Alert.alert('Info', 'Sign in already in progress');
+    } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+      Alert.alert('Error', 'Google Play Services not available');
+    } else {
+      Alert.alert('Error', 'Google Sign-In failed. Try again.');
+      console.error(error);
+    }
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <View style={styles.container}>
@@ -58,8 +88,15 @@ export default function LoginScreen({navigation}: any) {
           <View style={styles.dividerLine} />
         </View>
 
-        <TouchableOpacity style={styles.googleBtn} onPress={handleGoogleLogin}>
-          <Text style={styles.googleBtnText}>🔵 Continue with Google</Text>
+        <TouchableOpacity
+          style={styles.googleBtn}
+          onPress={handleGoogleLogin}
+          disabled={loading}>
+          {loading ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <Text style={styles.googleBtnText}>🔵 Continue with Google</Text>
+          )}
         </TouchableOpacity>
       </View>
 
