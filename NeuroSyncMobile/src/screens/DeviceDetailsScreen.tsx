@@ -35,6 +35,12 @@ export default function DeviceDetailsScreen({navigation}: any) {
         onPress={() => navigation.navigate('Keyboard')}>
         <Text style={styles.mouseBtnText}>⌨️ Keyboard Control →</Text>
       </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.mouseBtn}
+        onPress={() => navigation.navigate('SystemMonitor')}>
+        <Text style={styles.mouseBtnText}>📊 System Monitor →</Text>
+      </TouchableOpacity>
     </View>
   );
 }
