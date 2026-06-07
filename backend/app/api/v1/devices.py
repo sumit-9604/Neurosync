@@ -24,6 +24,10 @@ async def get_devices():
             "device_id": device_id,
             "status": "online"
         })
+        logger.info(
+        f"Devices API sees: {_manager.get_all_devices()}"
+    )
+
 
     return {"devices": devices, "total": len(devices)}
 
