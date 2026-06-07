@@ -1,5 +1,6 @@
 import React from 'react';
-import {Text, TouchableOpacity, StyleSheet, ScrollView} from 'react-native';
+import {Text, TouchableOpacity, StyleSheet, ScrollView, Alert} from 'react-native';
+import {sendCommand} from '../services/commandService';
 
 const commands = [
   {id: 'notepad', label: '📝 Open Notepad', color: '#1E90FF'},
@@ -10,9 +11,13 @@ const commands = [
 ];
 
 export default function RemoteDashboardScreen({navigation}: any) {
-  const handleCommand = (commandId: string) => {
-    console.log('Command sent:', commandId);
-    // We'll connect this to the real API later
+  const handleCommand = async (commandId: string) => {
+    try {
+      await sendCommand('sumit-pc', commandId);
+      Alert.alert('Success', `Command "${commandId}" sent!`);
+    } catch {
+      Alert.alert('Error', 'Could not reach the device. Is the backend running?');
+    }
   };
 
   return (
