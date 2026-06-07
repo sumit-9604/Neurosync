@@ -23,6 +23,12 @@ export default function DeviceDetailsScreen({navigation}: any) {
         onPress={() => navigation.navigate('RemoteDashboard')}>
         <Text style={styles.controlBtnText}>Open Remote Dashboard →</Text>
       </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.mouseBtn}
+        onPress={() => navigation.navigate('MouseControl')}>
+        <Text style={styles.mouseBtnText}>🖱️ Mouse Control →</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -48,4 +54,6 @@ const styles = StyleSheet.create({
   value: {color: '#FFFFFF', fontSize: 14, fontWeight: '500'},
   controlBtn: {marginTop: 24, backgroundColor: '#00FF66', padding: 16, borderRadius: 12, alignItems: 'center'},
   controlBtnText: {color: '#000000', fontSize: 16, fontWeight: 'bold'},
+  mouseBtn: {marginTop: 12, backgroundColor: '#1E1E1E', borderWidth: 1, borderColor: '#00FF66', padding: 16, borderRadius: 12, alignItems: 'center'},
+  mouseBtnText: {color: '#00FF66', fontSize: 16, fontWeight: 'bold'},
 });
