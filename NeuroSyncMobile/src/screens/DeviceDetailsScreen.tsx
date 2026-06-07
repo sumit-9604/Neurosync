@@ -29,6 +29,12 @@ export default function DeviceDetailsScreen({navigation}: any) {
         onPress={() => navigation.navigate('MouseControl')}>
         <Text style={styles.mouseBtnText}>🖱️ Mouse Control →</Text>
       </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.mouseBtn}
+        onPress={() => navigation.navigate('Keyboard')}>
+        <Text style={styles.mouseBtnText}>⌨️ Keyboard Control →</Text>
+      </TouchableOpacity>
     </View>
   );
 }

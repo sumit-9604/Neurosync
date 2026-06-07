@@ -8,6 +8,7 @@ import DeviceDetailsScreen from '../screens/DeviceDetailsScreen';
 import RemoteDashboardScreen from '../screens/RemoteDashboardScreen';
 import RegisterScreen from '../screens/RegisterScreen';
 import MouseControlScreen from '../screens/MouseControlScreen';
+import KeyboardScreen from '../screens/KeyboardScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -22,6 +23,7 @@ export default function AppNavigator() {
         <Stack.Screen name="RemoteDashboard" component={RemoteDashboardScreen} />
         <Stack.Screen name="Register" component={RegisterScreen} />
         <Stack.Screen name="MouseControl" component={MouseControlScreen} />
+        <Stack.Screen name="Keyboard" component={KeyboardScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
