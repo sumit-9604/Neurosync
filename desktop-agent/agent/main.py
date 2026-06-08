@@ -13,13 +13,13 @@ import logging
 import os
 import signal
 import sys
-
-# Add project root to path if needed (adjust if your modules are in a subfolder)
+from dotenv import load_dotenv
+load_dotenv()
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from connection.websocket_client import WebSocketClient
 from connection.device_info import get_device_info
-from dotenv import load_dotenv
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -27,7 +27,7 @@ logging.basicConfig(
     handlers=[logging.StreamHandler()]
 )
 logger = logging.getLogger("desktop_agent")
-load_dotenv()
+
 def parse_args():
     parser = argparse.ArgumentParser(description="Desktop Agent WebSocket Client")
     parser.add_argument(
@@ -68,6 +68,7 @@ async def shutdown(signal, client):
 
 async def main():
     args = parse_args()
+    logger.info(f"Backend URL: {args.url}")
 
     if args.debug:
         logging.getLogger().setLevel(logging.DEBUG)

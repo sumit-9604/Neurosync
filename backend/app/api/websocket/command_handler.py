@@ -4,7 +4,8 @@ from fastapi import WebSocket, WebSocketDisconnect, APIRouter
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from app.api.websocket.connection_manager import ConnectionManager
-
+from app.models.device import Device
+from app.db.database import SessionLocal
 logger = logging.getLogger("command_handler")
 router = APIRouter()
 
