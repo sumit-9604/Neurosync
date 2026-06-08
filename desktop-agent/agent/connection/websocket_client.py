@@ -196,9 +196,16 @@ class WebSocketClient:
         action = command.get("action")
 
         logger.info(f"Received command: action={action}, request_id={request_id}")
+        payload = command.get("payload", {})
+
+        router_command = {
+            "action": action,
+            "request_id": command.get("request_id"),
+             **payload
+        }
 
         # Execute via the command router
-        result = execute(command)
+        result = execute(router_command)
 
         # Prepare response
         response = {

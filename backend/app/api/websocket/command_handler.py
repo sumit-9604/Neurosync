@@ -42,6 +42,9 @@ async def handle_agent_connection(websocket: WebSocket, manager: ConnectionManag
 
         # Register without calling accept() again
         manager.connected_agents[device_id] = websocket
+        logger.info(
+    f"Connected Agents: {list(manager.connected_agents.keys())}"
+)
         logger.info(f"Agent registered: {device_id} ({hostname})")
 
         await websocket.send_json({
