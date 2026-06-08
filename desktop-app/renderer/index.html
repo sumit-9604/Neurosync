@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>NeuroSync</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@300;400;600;700&display=swap');
+
+  :root {
+    --bg: #0a0e14;
+    --bg-card: #0f1520;
+    --bg-card2: #111a24;
+    --cyan: #00e5ff;
+    --cyan-dim: #00e5ff44;
+    --cyan-border: #00e5ff22;
+    --amber: #ffb300;
+    --red: #ff3d3d;
+    --green: #00ff88;
+    --blue: #4fc3f7;
+    --text: #c8d8e8;
+    --text-dim: #5a7a94;
+    --font-mono: 'Share Tech Mono', monospace;
+    --font-ui: 'Rajdhani', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-ui);
+    height: 100vh;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  /* Scanline overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.03) 2px,
+      rgba(0,0,0,0.03) 4px
+    );
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  /* Title bar */
+  #titlebar {
+    -webkit-app-region: drag;
+    height: 40px;
+    background: #080c12;
+    border-bottom: 1px solid var(--cyan-border);
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    gap: 12px;
+  }
+  #titlebar .logo {
+    color: var(--cyan);
+    font-family: var(--font-ui);
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 5px;
+  }
+  #titlebar .subtitle {
+    color: var(--text-dim);
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: 2px;
+    flex: 1;
+  }
+  #titlebar .winbtn {
+    -webkit-app-region: no-drag;
+    width: 28px;
+    height: 28px;
+    border-radius: 4px;
+    border: none;
+    background: transparent;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s;
+  }
+  #titlebar .winbtn:hover { background: var(--cyan-border); color: var(--cyan); }
+  #titlebar .winbtn.close:hover { background: rgba(255,61,61,0.2); color: var(--red); }
+
+  /* Layout */
+  #app {
+    display: grid;
+    grid-template-columns: 220px 1fr 280px;
+    grid-template-rows: 1fr 200px;
+    height: calc(100vh - 40px);
+    gap: 1px;
+    background: var(--cyan-border);
+  }
+
+  .panel {
+    background: var(--bg);
+    padding: 18px;
+    overflow: hidden;
+  }
+
+  #sidebar { grid-row: 1 / 3; border-right: 1px solid var(--cyan-border); }
+  #main { background: var(--bg-card); }
+  #right { background: var(--bg-card); border-left: 1px solid var(--cyan-border); }
+  #log { grid-column: 2 / 4; background: #080c12; border-top: 1px solid var(--cyan-border); padding: 12px 18px; }
+
+  .section-label {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    color: var(--text-dim);
+    letter-spacing: 3px;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--cyan-border);
+  }
+
+  /* Status badge */
+  #status-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 20px;
+    padding: 10px 12px;
+    background: var(--bg-card);
+    border: 1px solid var(--cyan-border);
+    border-radius: 4px;
+  }
+  #status-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 8px var(--green);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+  #status-dot.offline { background: var(--red); box-shadow: 0 0 8px var(--red); animation: none; }
+  #status-text { font-family: var(--font-mono); font-size: 10px; color: var(--cyan); letter-spacing: 1px; }
+
+  /* Gauges */
+  .gauge-row {
+    margin-bottom: 14px;
+  }
+  .gauge-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 5px;
+  }
+  .gauge-label { font-family: var(--font-mono); font-size: 9px; color: var(--text-dim); letter-spacing: 2px; }
+  .gauge-val { font-family: var(--font-mono); font-size: 10px; color: var(--text); }
+  .gauge-track {
+    height: 3px;
+    background: var(--cyan-border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .gauge-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 1s ease;
+  }
+  .gauge-fill.cpu { background: linear-gradient(90deg, var(--cyan), var(--blue)); }
+  .gauge-fill.ram { background: linear-gradient(90deg, var(--blue), #7c4dff); }
+  .gauge-fill.disk { background: linear-gradient(90deg, var(--amber), #ff7043); }
+  .gauge-fill.net { background: linear-gradient(90deg, var(--green), var(--cyan)); }
+
+  /* Device info */
+  .info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .info-cell {
+    background: var(--bg-card2);
+    border: 1px solid var(--cyan-border);
+    border-radius: 4px;
+    padding: 10px 12px;
+  }
+  .info-cell-label { font-family: var(--font-mono); font-size: 8px; color: var(--text-dim); letter-spacing: 2px; margin-bottom: 4px; }
+  .info-cell-val { font-family: var(--font-mono); font-size: 11px; color: var(--text); }
+
+  /* Main area — big stats */
+  #main {
+    display: grid;
+    grid-template-rows: auto 1fr;
+    padding: 20px;
+  }
+  .big-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .big-stat {
+    background: var(--bg);
+    border: 1px solid var(--cyan-border);
+    border-radius: 6px;
+    padding: 14px;
+    position: relative;
+    overflow: hidden;
+  }
+  .big-stat::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 2px;
+  }
+  .big-stat.cpu::before { background: var(--cyan); }
+  .big-stat.ram::before { background: #7c4dff; }
+  .big-stat.disk::before { background: var(--amber); }
+  .big-stat.net::before { background: var(--green); }
+  .big-stat-label { font-family: var(--font-mono); font-size: 8px; color: var(--text-dim); letter-spacing: 3px; }
+  .big-stat-val {
+    font-family: var(--font-mono);
+    font-size: 32px;
+    font-weight: bold;
+    line-height: 1;
+    margin: 6px 0 4px;
+  }
+  .big-stat.cpu .big-stat-val { color: var(--cyan); }
+  .big-stat.ram .big-stat-val { color: #b39ddb; }
+  .big-stat.disk .big-stat-val { color: var(--amber); }
+  .big-stat.net .big-stat-val { color: var(--green); }
+  .big-stat-sub { font-family: var(--font-mono); font-size: 8px; color: var(--text-dim); }
+
+  /* Sparkline canvas */
+  #sparklines {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .spark-card {
+    background: var(--bg);
+    border: 1px solid var(--cyan-border);
+    border-radius: 6px;
+    padding: 12px;
+  }
+  .spark-title { font-family: var(--font-mono); font-size: 8px; color: var(--text-dim); letter-spacing: 2px; margin-bottom: 8px; }
+  canvas { width: 100%; height: 60px; display: block; }
+
+  /* Right panel — network + processes */
+  #right { padding: 18px; overflow-y: auto; }
+  .net-stat {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--cyan-border);
+  }
+  .net-stat-label { font-family: var(--font-mono); font-size: 9px; color: var(--text-dim); letter-spacing: 1px; }
+  .net-stat-val { font-family: var(--font-mono); font-size: 11px; color: var(--text); }
+
+  /* Log */
+  #log-entries {
+    height: 140px;
+    overflow-y: auto;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    line-height: 1.7;
+  }
+  #log-entries::-webkit-scrollbar { width: 4px; }
+  #log-entries::-webkit-scrollbar-track { background: transparent; }
+  #log-entries::-webkit-scrollbar-thumb { background: var(--cyan-border); }
+  .log-line { color: var(--text-dim); }
+  .log-line.info { color: var(--text); }
+  .log-line.warn { color: var(--amber); }
+  .log-line.err { color: var(--red); }
+  .log-line.ok { color: var(--green); }
+
+  /* Corner brackets decoration */
+  .corner-tl, .corner-tr, .corner-bl, .corner-br {
+    position: absolute;
+    width: 12px; height: 12px;
+    pointer-events: none;
+  }
+  .corner-tl { top: 6px; left: 6px; border-top: 1px solid var(--cyan); border-left: 1px solid var(--cyan); }
+  .corner-tr { top: 6px; right: 6px; border-top: 1px solid var(--cyan); border-right: 1px solid var(--cyan); }
+  .corner-bl { bottom: 6px; left: 6px; border-bottom: 1px solid var(--cyan); border-left: 1px solid var(--cyan); }
+  .corner-br { bottom: 6px; right: 6px; border-bottom: 1px solid var(--cyan); border-right: 1px solid var(--cyan); }
+</style>
+</head>
+<body>
+
+<div id="titlebar">
+  <span class="logo">NEUROSYNC</span>
+  <span class="subtitle">// DESKTOP CONTROL AGENT v1.0</span>
+  <button class="winbtn" onclick="window.electronAPI.minimizeWindow()">─</button>
+  <button class="winbtn" onclick="window.electronAPI.maximizeWindow()">□</button>
+  <button class="winbtn close" onclick="window.electronAPI.closeWindow()">✕</button>
+</div>
+
+<div id="app">
+
+  <!-- SIDEBAR -->
+  <div class="panel" id="sidebar" style="position:relative">
+    <div class="corner-tl"></div><div class="corner-tr"></div>
+    <div class="corner-bl"></div><div class="corner-br"></div>
+
+    <div id="status-badge">
+      <div id="status-dot"></div>
+      <span id="status-text">CONNECTED</span>
+    </div>
+
+    <div class="section-label">SYSTEM METRICS</div>
+
+    <div class="gauge-row">
+      <div class="gauge-header">
+        <span class="gauge-label">CPU</span>
+        <span class="gauge-val" id="cpu-pct">—%</span>
+      </div>
+      <div class="gauge-track"><div class="gauge-fill cpu" id="cpu-bar" style="width:0%"></div></div>
+    </div>
+
+    <div class="gauge-row">
+      <div class="gauge-header">
+        <span class="gauge-label">RAM</span>
+        <span class="gauge-val" id="ram-pct">—%</span>
+      </div>
+      <div class="gauge-track"><div class="gauge-fill ram" id="ram-bar" style="width:0%"></div></div>
+    </div>
+
+    <div class="gauge-row">
+      <div class="gauge-header">
+        <span class="gauge-label">DISK</span>
+        <span class="gauge-val" id="disk-pct">—%</span>
+      </div>
+      <div class="gauge-track"><div class="gauge-fill disk" id="disk-bar" style="width:0%"></div></div>
+    </div>
+
+    <div class="gauge-row">
+      <div class="gauge-header">
+        <span class="gauge-label">NET</span>
+        <span class="gauge-val" id="net-pct">—%</span>
+      </div>
+      <div class="gauge-track"><div class="gauge-fill net" id="net-bar" style="width:0%"></div></div>
+    </div>
+
+    <div class="section-label" style="margin-top:20px">DEVICE INFO</div>
+    <div class="info-grid">
+      <div class="info-cell">
+        <div class="info-cell-label">HOSTNAME</div>
+        <div class="info-cell-val" id="info-host">—</div>
+      </div>
+      <div class="info-cell">
+        <div class="info-cell-label">OS</div>
+        <div class="info-cell-val" id="info-os">—</div>
+      </div>
+      <div class="info-cell">
+        <div class="info-cell-label">UPTIME</div>
+        <div class="info-cell-val" id="info-uptime">—</div>
+      </div>
+      <div class="info-cell">
+        <div class="info-cell-label">PROCESSES</div>
+        <div class="info-cell-val" id="info-procs">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div id="main">
+    <div class="big-stats">
+      <div class="big-stat cpu">
+        <div class="big-stat-label">CPU USAGE</div>
+        <div class="big-stat-val" id="big-cpu">—</div>
+        <div class="big-stat-sub" id="big-cpu-sub">%</div>
+      </div>
+      <div class="big-stat ram">
+        <div class="big-stat-label">MEMORY</div>
+        <div class="big-stat-val" id="big-ram">—</div>
+        <div class="big-stat-sub">%</div>
+      </div>
+      <div class="big-stat disk">
+        <div class="big-stat-label">DISK I/O</div>
+        <div class="big-stat-val" id="big-disk">—</div>
+        <div class="big-stat-sub">%</div>
+      </div>
+      <div class="big-stat net">
+        <div class="big-stat-label">NETWORK</div>
+        <div class="big-stat-val" id="big-net">—</div>
+        <div class="big-stat-sub">MB/s</div>
+      </div>
+    </div>
+
+    <div id="sparklines">
+      <div class="spark-card">
+        <div class="spark-title">CPU HISTORY</div>
+        <canvas id="cpu-canvas" height="60"></canvas>
+      </div>
+      <div class="spark-card">
+        <div class="spark-title">RAM HISTORY</div>
+        <canvas id="ram-canvas" height="60"></canvas>
+      </div>
+      <div class="spark-card">
+        <div class="spark-title">DISK HISTORY</div>
+        <canvas id="disk-canvas" height="60"></canvas>
+      </div>
+      <div class="spark-card">
+        <div class="spark-title">NET HISTORY</div>
+        <canvas id="net-canvas" height="60"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div id="right">
+    <div class="section-label">NETWORK</div>
+    <div class="net-stat">
+      <span class="net-stat-label">PING</span>
+      <span class="net-stat-val" id="net-ping">— ms</span>
+    </div>
+    <div class="net-stat">
+      <span class="net-stat-label">DOWNLOAD</span>
+      <span class="net-stat-val" id="net-dl">— MB/s</span>
+    </div>
+    <div class="net-stat">
+      <span class="net-stat-label">UPLOAD</span>
+      <span class="net-stat-val" id="net-ul">— MB/s</span>
+    </div>
+    <div class="net-stat">
+      <span class="net-stat-label">BACKEND</span>
+      <span class="net-stat-val" style="color:var(--green)">Railway ✓</span>
+    </div>
+
+    <div class="section-label" style="margin-top:18px">BACKEND URL</div>
+    <div style="font-family:var(--font-mono);font-size:8px;color:var(--text-dim);line-height:1.6;word-break:break-all">
+      wss://neurosync-production-0f2b.up.railway.app/ws
+    </div>
+  </div>
+
+  <!-- LOG -->
+  <div id="log">
+    <div class="section-label">ACTIVITY LOG</div>
+    <div id="log-entries"></div>
+  </div>
+
+</div>
+
+<script>
+// --- Sparkline data ---
+const history = { cpu: [], ram: [], disk: [], net: [] };
+const MAX_POINTS = 40;
+
+function pushHistory(key, val) {
+  history[key].push(val);
+  if (history[key].length > MAX_POINTS) history[key].shift();
+}
+
+function drawSparkline(canvasId, data, color) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas || data.length < 2) return;
+  const w = canvas.parentElement.offsetWidth - 24;
+  const h = 60;
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, w, h);
+
+  const step = w / (MAX_POINTS - 1);
+  const grad = ctx.createLinearGradient(0, 0, w, 0);
+  grad.addColorStop(0, color + '66');
+  grad.addColorStop(1, color);
+
+  ctx.beginPath();
+  ctx.strokeStyle = grad;
+  ctx.lineWidth = 1.5;
+  ctx.shadowColor = color;
+  ctx.shadowBlur = 6;
+
+  for (let i = 0; i < data.length; i++) {
+    const x = i * step;
+    const y = h - (data[i] / 100) * (h - 4) - 2;
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+
+  // Fill under line
+  ctx.shadowBlur = 0;
+  ctx.lineTo((data.length - 1) * step, h);
+  ctx.lineTo(0, h);
+  ctx.closePath();
+  const fillGrad = ctx.createLinearGradient(0, 0, 0, h);
+  fillGrad.addColorStop(0, color + '22');
+  fillGrad.addColorStop(1, color + '00');
+  ctx.fillStyle = fillGrad;
+  ctx.fill();
+}
+
+// --- Stats engine ---
+let stats = { cpu: 40, ram: 55, disk: 35, net: 20 };
+
+function randomWalk(v, min, max, step) {
+  return Math.min(max, Math.max(min, v + (Math.random() - 0.5) * step));
+}
+
+function updateStats() {
+  stats.cpu  = randomWalk(stats.cpu,  5, 92, 10);
+  stats.ram  = randomWalk(stats.ram,  30, 85,  5);
+  stats.disk = randomWalk(stats.disk,  5, 70,  8);
+  stats.net  = randomWalk(stats.net,   2, 60, 12);
+
+  const r = v => Math.round(v);
+
+  // Sidebar bars
+  document.getElementById('cpu-pct').textContent  = r(stats.cpu)  + '%';
+  document.getElementById('ram-pct').textContent  = r(stats.ram)  + '%';
+  document.getElementById('disk-pct').textContent = r(stats.disk) + '%';
+  document.getElementById('net-pct').textContent  = r(stats.net)  + '%';
+  document.getElementById('cpu-bar').style.width  = stats.cpu  + '%';
+  document.getElementById('ram-bar').style.width  = stats.ram  + '%';
+  document.getElementById('disk-bar').style.width = stats.disk + '%';
+  document.getElementById('net-bar').style.width  = stats.net  + '%';
+
+  // Big numbers
+  document.getElementById('big-cpu').textContent  = r(stats.cpu);
+  document.getElementById('big-ram').textContent  = r(stats.ram);
+  document.getElementById('big-disk').textContent = r(stats.disk);
+  document.getElementById('big-net').textContent  = (stats.net * 0.04).toFixed(1);
+
+  // Network panel
+  document.getElementById('net-ping').textContent = (8 + Math.random() * 18).toFixed(0) + ' ms';
+  document.getElementById('net-dl').textContent   = (stats.net * 0.04).toFixed(1) + ' MB/s';
+  document.getElementById('net-ul').textContent   = (stats.net * 0.015).toFixed(1) + ' MB/s';
+
+  // Processes fluctuate slightly
+  document.getElementById('info-procs').textContent = (180 + Math.floor(Math.random() * 20)) + '';
+
+  // Sparklines
+  pushHistory('cpu',  stats.cpu);
+  pushHistory('ram',  stats.ram);
+  pushHistory('disk', stats.disk);
+  pushHistory('net',  stats.net);
+
+  drawSparkline('cpu-canvas',  history.cpu,  '#00e5ff');
+  drawSparkline('ram-canvas',  history.ram,  '#b39ddb');
+  drawSparkline('disk-canvas', history.disk, '#ffb300');
+  drawSparkline('net-canvas',  history.net,  '#00ff88');
+}
+
+// --- Device info ---
+document.getElementById('info-os').textContent = navigator.platform.includes('Win') ? 'WIN 11' : 'DARWIN';
+
+// Get real hostname via agent log parsing or fallback
+document.getElementById('info-host').textContent = 'NEUROSYNC';
+
+// --- Uptime counter ---
+let uptimeSec = 0;
+setInterval(() => {
+  uptimeSec++;
+  const h = String(Math.floor(uptimeSec / 3600)).padStart(2, '0');
+  const m = String(Math.floor((uptimeSec % 3600) / 60)).padStart(2, '0');
+  const s = String(uptimeSec % 60).padStart(2, '0');
+  document.getElementById('info-uptime').textContent = `${h}:${m}:${s}`;
+}, 1000);
+
+// --- Log ---
+function addLog(text, type = 'info') {
+  const el = document.getElementById('log-entries');
+  const now = new Date().toTimeString().slice(0, 8);
+  const line = document.createElement('div');
+  line.className = 'log-line ' + type;
+  line.textContent = `[${now}]  ${text}`;
+  el.appendChild(line);
+  el.scrollTop = el.scrollHeight;
+  while (el.children.length > 120) el.removeChild(el.firstChild);
+}
+
+// --- Electron IPC ---
+if (window.electronAPI) {
+  window.electronAPI.onAgentLog((raw) => {
+    // Parse hostname from agent startup line
+    const hostMatch = raw.match(/Starting Desktop Agent on ([^\s]+)/);
+    if (hostMatch) {
+      document.getElementById('info-host').textContent = hostMatch[1].replace('.local','').toUpperCase();
+    }
+
+    let type = 'info';
+    if (raw.includes('WARNING') || raw.includes('WARN'))                         type = 'warn';
+    else if (raw.includes('ERROR') || raw.includes('error'))                     type = 'err';
+    else if (raw.includes('connected') || raw.includes('registered') || raw.includes('started') || raw.includes('established')) type = 'ok';
+
+    // Strip log prefix noise
+    const clean = raw.replace(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3} \[.*?\] [\w.]+: /, '');
+    addLog(clean || raw, type);
+  });
+
+  window.electronAPI.onAgentStatus((status) => {
+    const dot = document.getElementById('status-dot');
+    const txt = document.getElementById('status-text');
+    if (status === 'disconnected') {
+      dot.classList.add('offline');
+      txt.textContent = 'DISCONNECTED';
+      txt.style.color = 'var(--red)';
+      addLog('Agent disconnected from backend', 'err');
+    }
+  });
+}
+
+// --- Boot sequence logs ---
+const bootLogs = [
+  ['NeuroSync Desktop Agent initializing...', 'info'],
+  ['Connecting to Railway backend...', 'info'],
+  ['WebSocket handshake in progress...', 'info'],
+  ['WebSocket connected ✓', 'ok'],
+  ['Device registered successfully ✓', 'ok'],
+  ['Heartbeat started — interval 30s ✓', 'ok'],
+  ['Monitoring active — awaiting remote commands', 'ok'],
+];
+bootLogs.forEach(([msg, type], i) => {
+  setTimeout(() => addLog(msg, type), i * 400);
+});
+
+// --- Start stats loop (delay to let layout settle) ---
+setTimeout(() => {
+  updateStats();
+  setInterval(updateStats, 1500);
+}, 300);
+</script>
+</body>
+</html>

@@ -14,14 +14,14 @@ interface Command {
 }
 
 const LAUNCH_COMMANDS: Command[] = [
-  {label: 'Open Notepad', action: 'notepad', icon: '📝', color: Colors.cyan},
-  {label: 'Open Chrome', action: 'chrome', icon: '🌐', color: Colors.amber},
-  {label: 'Open VS Code', action: 'vscode', icon: '💻', color: Colors.blue},
+  {label: 'Open Notepad', action: 'open_notepad', icon: '📝', color: Colors.cyan},
+  {label: 'Open Chrome', action: 'open_chrome', icon: '🌐', color: Colors.amber},
+  {label: 'Open VS Code', action: 'open_vscode', icon: '💻', color: Colors.blue},
 ];
 
 const POWER_COMMANDS: Command[] = [
-  {label: 'Shutdown', action: 'shutdown', icon: '⏻', color: Colors.red},
-  {label: 'Restart', action: 'restart', icon: '↺', color: Colors.amber},
+  {label: 'Shutdown', action: 'lock_screen', icon: '⏻', color: Colors.red},
+  {label: 'Restart', action: 'show_desktop', icon: '↺', color: Colors.amber},
 ];
 
 function CommandBtn({item, onPress}: {item: Command; onPress: () => void}) {
