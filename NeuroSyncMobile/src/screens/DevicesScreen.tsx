@@ -16,16 +16,18 @@ export default function DevicesScreen({navigation}: any) {
   }, []);
 
   const fetchDevices = async () => {
-    try {
-      setLoading(true);
-      const response = await api.get('/api/v1/devices');
-      setDevices(response.data);
-    } catch {
-      Alert.alert('ERROR', 'Could not fetch devices. Is the backend running?');
-    } finally {
-      setLoading(false);
-    }
-  };
+  try {
+    setLoading(true);
+    const response = await api.get('/api/v1/devices');
+    console.log('Devices response:', JSON.stringify(response.data));
+    setDevices(response.data.devices || response.data);
+  } catch (error) {
+    console.log('Devices error:', error);
+    Alert.alert('ERROR', 'Could not fetch devices. Is the backend running?');
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleSignOut = () => {
     Alert.alert('SIGN OUT', 'Terminate current session?', [
@@ -84,7 +86,7 @@ export default function DevicesScreen({navigation}: any) {
                 <View style={styles.statusRing} />
               </View>
               <View style={styles.deviceInfo}>
-                <Text style={styles.deviceName}>{item.name || item.device_name || item.hostname}</Text>
+                <Text style={styles.deviceName}>{item.device_id || item.name || item.device_name || item.hostname}</Text>
                 <Text style={styles.deviceMeta}>{item.os || 'WINDOWS'}  ·  {item.status?.toUpperCase() || 'ONLINE'}</Text>
               </View>
               <Text style={styles.chevron}>›</Text>
