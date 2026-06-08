@@ -23,7 +23,7 @@ function InfoRow({label, value}: {label: string; value: string}) {
 
 export default function DeviceDetailsScreen({navigation, route}: any) {
   const device = route.params?.device || {};
-  const deviceName = device.name || device.device_name || device.hostname || 'UNKNOWN';
+  const deviceName = device.device_id || device.name || device.device_name || device.hostname || 'UNKNOWN';
   const deviceOs = device.os || 'WINDOWS 11';
   const deviceIp = device.ip_address || device.ip || '—';
   const lastSeen = device.last_seen || 'Just now';

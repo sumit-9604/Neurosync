@@ -19,7 +19,7 @@ const PAD_SIZE = width - Spacing.lg * 2;
 
 export default function MouseControlScreen({ navigation, route }: any) {
   const deviceId = route?.params?.device?.device_id ?? route?.params?.deviceId ?? '';
-  const deviceName = route?.params?.device?.name || route?.params?.device?.hostname || 'UNKNOWN';
+  const deviceName = deviceId || 'UNKNOWN';
   const [status, setStatus] = useState('AWAITING INPUT');
   const [cursorX, setCursorX] = useState(PAD_SIZE / 2);
   const [cursorY, setCursorY] = useState(PAD_SIZE * 0.37);

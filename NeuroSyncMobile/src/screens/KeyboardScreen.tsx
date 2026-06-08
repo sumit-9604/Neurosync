@@ -34,7 +34,7 @@ const SPECIAL_KEYS = [
 
 export default function KeyboardScreen({ navigation, route }: any) {
   const deviceId = route?.params?.device?.device_id ?? route?.params?.deviceId ?? '';
-  const deviceName = route?.params?.device?.name || route?.params?.device?.hostname || 'UNKNOWN';
+  const deviceName = deviceId || 'UNKNOWN';
   const [text, setText] = useState('');
   const [status, setStatus] = useState('READY');
   const [lastKey, setLastKey] = useState('—');
