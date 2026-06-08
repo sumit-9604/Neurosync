@@ -17,7 +17,9 @@ import { CornerBrackets, ScanlineOverlay, HudTopBar, HudDivider } from '../compo
 const { width } = Dimensions.get('window');
 const PAD_SIZE = width - Spacing.lg * 2;
 
-export default function MouseControlScreen({ navigation }: any) {
+export default function MouseControlScreen({ navigation, route }: any) {
+  const deviceId = route?.params?.device?.device_id ?? route?.params?.deviceId ?? '';
+  const deviceName = deviceId || 'UNKNOWN';
   const [status, setStatus] = useState('AWAITING INPUT');
   const [cursorX, setCursorX] = useState(PAD_SIZE / 2);
   const [cursorY, setCursorY] = useState(PAD_SIZE * 0.37);
@@ -37,7 +39,7 @@ export default function MouseControlScreen({ navigation }: any) {
         // update visual cursor position (clamped)
         setCursorX(Math.max(10, Math.min(PAD_SIZE - 10, PAD_SIZE / 2 + dx)));
         setCursorY(Math.max(10, Math.min(PAD_SIZE * 0.75 - 10, PAD_SIZE * 0.37 + dy)));
-        sendCommand('sumit-pc', `mouse_move:${dx}:${dy}`).catch(() => {});
+        sendCommand(deviceId, 'mouse_move_relative', { dx, dy }).catch(() => {});
         lastPos.current = { x: gs.moveX, y: gs.moveY };
       },
       onPanResponderRelease: () => {
@@ -51,7 +53,13 @@ export default function MouseControlScreen({ navigation }: any) {
   const handleClick = async (button: string, label: string) => {
     try {
       setStatus(`CMD: ${label}`);
-      await sendCommand('sumit-pc', `mouse_click:${button}`);
+      if (button === 'scroll_up') {
+  await sendCommand(deviceId, 'mouse_scroll', { amount: -3 });
+} else if (button === 'scroll_down') {
+  await sendCommand(deviceId, 'mouse_scroll', { amount: 3 });
+} else {
+  await sendCommand(deviceId, 'mouse_click', { button });
+}
       setTimeout(() => setStatus('AWAITING INPUT'), 1000);
     } catch {
       setStatus('ERR: DEVICE UNREACHABLE');
@@ -82,7 +90,7 @@ export default function MouseControlScreen({ navigation }: any) {
       <HudTopBar
         title="MOUSE CONTROL"
         onBack={() => navigation.goBack()}
-        rightLabel="SUMIT-PC"
+        rightLabel={deviceName}
         pulse
       />
 

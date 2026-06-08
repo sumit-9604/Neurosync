@@ -10,6 +10,18 @@
   "build": {
     "appId": "com.neurosync.desktop",
     "productName": "NeuroSync",
+    "files": [
+      "main.js",
+      "preload.js",
+      "renderer/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "../desktop-agent",
+        "to": "desktop-agent",
+        "filter": ["**/*"]
+      }
+    ],
     "mac": { "target": "dmg" },
     "win": { "target": "nsis" }
   },
