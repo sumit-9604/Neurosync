@@ -1,13 +1,9 @@
-/* eslint-disable react-native/no-inline-styles */
-import React, {useState, useEffect} from 'react';
+/* eslint-disable */
+import React, {useState, useEffect, useCallback} from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  TouchableOpacity,
-  RefreshControl,
-  Alert,
+  View, Text, StyleSheet, FlatList, TouchableOpacity,
+  RefreshControl, Alert, StatusBar, ActivityIndicator,
+  TextInput, Modal,
 } from 'react-native';
 import {api} from '../services/apiClient';
 
@@ -19,51 +15,74 @@ interface FileItem {
   extension: string;
 }
 
-const DUMMY_FILES: FileItem[] = [
-  {name: 'Documents', type: 'folder', size: '--', modified: 'Today', extension: ''},
-  {name: 'Downloads', type: 'folder', size: '--', modified: 'Today', extension: ''},
-  {name: 'Desktop', type: 'folder', size: '--', modified: 'Yesterday', extension: ''},
-  {name: 'Pictures', type: 'folder', size: '--', modified: '3 days ago', extension: ''},
-  {name: 'project_report.pdf', type: 'file', size: '2.4 MB', modified: 'Today', extension: 'pdf'},
-  {name: 'notes.txt', type: 'file', size: '12 KB', modified: 'Today', extension: 'txt'},
-  {name: 'budget.xlsx', type: 'file', size: '340 KB', modified: 'Yesterday', extension: 'xlsx'},
-  {name: 'setup.exe', type: 'file', size: '78 MB', modified: '2 days ago', extension: 'exe'},
-  {name: 'photo.png', type: 'file', size: '4.1 MB', modified: '3 days ago', extension: 'png'},
-];
-
 function getFileIcon(item: FileItem): string {
-  if (item.type === 'folder') return '📁';
+  if (item.type === 'folder') return '▣';
   const icons: Record<string, string> = {
-    pdf: '📄',
-    txt: '📝',
-    xlsx: '📊',
-    xls: '📊',
-    doc: '📃',
-    docx: '📃',
-    exe: '⚙️',
-    png: '🖼️',
-    jpg: '🖼️',
-    mp4: '🎬',
-    mp3: '🎵',
-    zip: '🗜️',
+    pdf: '⬡', txt: '≡', xlsx: '⊞', xls: '⊞',
+    doc: '⊟', docx: '⊟', exe: '⚙', png: '⬡',
+    jpg: '⬡', jpeg: '⬡', mp4: '▶', mp3: '♪',
+    zip: '⊛', rar: '⊛',
   };
-  return icons[item.extension] || '📄';
+  return icons[item.extension?.toLowerCase()] || '◈';
 }
 
-export default function FileManagerScreen({navigation}: any) {
+function getIconColor(item: FileItem): string {
+  if (item.type === 'folder') return '#00e5ff';
+  const colors: Record<string, string> = {
+    pdf: '#ff3d3d', txt: '#c8d8e8', xlsx: '#00ff88', xls: '#00ff88',
+    doc: '#4fc3f7', docx: '#4fc3f7', exe: '#ffb300', png: '#b39ddb',
+    jpg: '#b39ddb', jpeg: '#b39ddb', mp4: '#ff7043', mp3: '#7c4dff',
+    zip: '#ffb300', rar: '#ffb300',
+  };
+  return colors[item.extension?.toLowerCase()] || '#5a7a94';
+}
+
+function EmptyDir() {
+  return (
+    <View style={styles.center}>
+      <Text style={styles.emptyText}>{'// DIRECTORY EMPTY'}</Text>
+    </View>
+  );
+}
+
+export default function FileManagerScreen({route, navigation}: any) {
+  const deviceId = route?.params?.deviceId;
   const [files, setFiles] = useState<FileItem[]>([]);
-  const [currentPath, setCurrentPath] = useState('C:\\Users\\Sumit');
+  const [currentPath, setCurrentPath] = useState('~');
   const [pathHistory, setPathHistory] = useState<string[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searching, setSearching] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<FileItem | null>(null);
+  const [menuVisible, setMenuVisible] = useState(false);
+  const [inputModal, setInputModal] = useState<{visible: boolean; title: string; placeholder: string; onSubmit: (val: string) => void}>({visible: false, title: '', placeholder: '', onSubmit: () => {}});
+  const [inputValue, setInputValue] = useState('');
+  const [sortBy, setSortBy] = useState<'name' | 'size' | 'date'>('name');
+  const [sortAsc, setSortAsc] = useState(true);
 
-  const fetchFiles = async (path: string) => {
-    try {
-      const response = await api.get(`/files?path=${encodeURIComponent(path)}`);
-      setFiles(response.data);
-    } catch {
-      setFiles(DUMMY_FILES);
-    }
+  const sendCommand = async (command: string, args: object) => {
+    const response = await api.post(`/api/v1/devices/${deviceId}/command`, {command, args});
+    return response.data?.result || response.data;
   };
+
+  const fetchFiles = useCallback(async (path: string) => {
+    setError('');
+    setLoading(true);
+    try {
+      const data = await sendCommand('list_files', {path});
+      if (Array.isArray(data)) setFiles(data);
+      else { setError('INVALID RESPONSE FROM DEVICE'); setFiles([]); }
+    } catch {
+      setError('DEVICE UNREACHABLE — PULL TO RETRY');
+      setFiles([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [deviceId]);
+
+  useEffect(() => { fetchFiles(currentPath); }, [currentPath, fetchFiles]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -71,34 +90,178 @@ export default function FileManagerScreen({navigation}: any) {
     setRefreshing(false);
   };
 
-  useEffect(() => {
-    fetchFiles(currentPath);
-  }, [currentPath]);
+  // Sort + filter
+  const displayFiles = [...files]
+    .filter(f => f.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    .sort((a, b) => {
+      // Folders first
+      if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
+      let cmp = 0;
+      if (sortBy === 'name') cmp = a.name.localeCompare(b.name);
+      else if (sortBy === 'date') cmp = a.modified.localeCompare(b.modified);
+      else if (sortBy === 'size') cmp = a.size.localeCompare(b.size);
+      return sortAsc ? cmp : -cmp;
+    });
 
-  const handleItemPress = (item: FileItem) => {
+  const openInputModal = (title: string, placeholder: string, onSubmit: (val: string) => void) => {
+    setInputValue('');
+    setInputModal({visible: true, title, placeholder, onSubmit});
+  };
+
+  const fullPath = (name: string) => `${currentPath}/${name}`;
+
+  // --- Actions ---
+  const handleOpen = (item: FileItem) => {
     if (item.type === 'folder') {
       setPathHistory(prev => [...prev, currentPath]);
-      setCurrentPath(`${currentPath}\\${item.name}`);
+      setCurrentPath(fullPath(item.name));
     } else {
-      Alert.alert(
-        item.name,
-        `Size: ${item.size}\nModified: ${item.modified}`,
-        [
-          {text: 'Cancel', style: 'cancel'},
-          {
-            text: 'Open on PC',
-            onPress: async () => {
-              try {
-                await api.post('/files/open', {path: `${currentPath}\\${item.name}`});
-                Alert.alert('Success', `Opening ${item.name} on PC`);
-              } catch {
-                Alert.alert('Error', 'Could not reach device');
-              }
-            },
-          },
-        ],
-      );
+      setSelectedItem(item);
+      setMenuVisible(true);
     }
+  };
+
+  const handleOpenOnPC = async (item: FileItem) => {
+    Alert.alert(
+      'OPEN FILE',
+      `Open "${item.name}" on the remote PC?`,
+      [
+        {text: 'CANCEL', style: 'cancel'},
+        {text: 'OPEN', onPress: async () => {
+          try {
+            await sendCommand('open_file', {path: fullPath(item.name)});
+            Alert.alert('SUCCESS', `Opening ${item.name} on remote PC`);
+          } catch { Alert.alert('ERROR', 'Could not open file'); }
+          setMenuVisible(false);
+        }},
+      ]
+    );
+  };
+
+  const handleDelete = (item: FileItem) => {
+    Alert.alert(
+      '⚠ DELETE',
+      `Permanently delete "${item.name}"? This cannot be undone.`,
+      [
+        {text: 'CANCEL', style: 'cancel'},
+        {text: 'DELETE', style: 'destructive', onPress: async () => {
+          try {
+            await sendCommand('delete_file', {path: fullPath(item.name)});
+            setFiles(prev => prev.filter(f => f.name !== item.name));
+            Alert.alert('DELETED', `"${item.name}" has been deleted`);
+          } catch { Alert.alert('ERROR', 'Could not delete file'); }
+          setMenuVisible(false);
+        }},
+      ]
+    );
+  };
+
+  const handleRename = (item: FileItem) => {
+    setMenuVisible(false);
+    openInputModal('RENAME', 'New name...', async (newName) => {
+      if (!newName.trim()) return;
+      Alert.alert(
+        'RENAME',
+        `Rename "${item.name}" to "${newName}"?`,
+        [
+          {text: 'CANCEL', style: 'cancel'},
+          {text: 'RENAME', onPress: async () => {
+            try {
+              await sendCommand('rename_file', {path: fullPath(item.name), new_name: newName.trim()});
+              await fetchFiles(currentPath);
+              Alert.alert('SUCCESS', 'File renamed successfully');
+            } catch { Alert.alert('ERROR', 'Could not rename file'); }
+          }},
+        ]
+      );
+    });
+  };
+
+  const handleCopy = (item: FileItem) => {
+    setMenuVisible(false);
+    openInputModal('COPY TO PATH', 'Destination path...', async (destPath) => {
+      if (!destPath.trim()) return;
+      Alert.alert(
+        'COPY',
+        `Copy "${item.name}" to "${destPath}"?`,
+        [
+          {text: 'CANCEL', style: 'cancel'},
+          {text: 'COPY', onPress: async () => {
+            try {
+              await sendCommand('copy_file', {src: fullPath(item.name), dest: destPath.trim()});
+              Alert.alert('SUCCESS', 'File copied successfully');
+            } catch { Alert.alert('ERROR', 'Could not copy file'); }
+          }},
+        ]
+      );
+    });
+  };
+
+  const handleMove = (item: FileItem) => {
+    setMenuVisible(false);
+    openInputModal('MOVE TO PATH', 'Destination path...', async (destPath) => {
+      if (!destPath.trim()) return;
+      Alert.alert(
+        'MOVE',
+        `Move "${item.name}" to "${destPath}"?`,
+        [
+          {text: 'CANCEL', style: 'cancel'},
+          {text: 'MOVE', onPress: async () => {
+            try {
+              await sendCommand('move_file', {src: fullPath(item.name), dest: destPath.trim()});
+              await fetchFiles(currentPath);
+              Alert.alert('SUCCESS', 'File moved successfully');
+            } catch { Alert.alert('ERROR', 'Could not move file'); }
+          }},
+        ]
+      );
+    });
+  };
+
+  const handleDownload = (item: FileItem) => {
+    Alert.alert(
+      'DOWNLOAD',
+      `Download "${item.name}" to your phone?`,
+      [
+        {text: 'CANCEL', style: 'cancel'},
+        {text: 'DOWNLOAD', onPress: async () => {
+          try {
+            await sendCommand('download_file', {path: fullPath(item.name)});
+            Alert.alert('SUCCESS', 'Download started');
+          } catch { Alert.alert('ERROR', 'Could not download file'); }
+          setMenuVisible(false);
+        }},
+      ]
+    );
+  };
+
+  const handleNewFolder = () => {
+    openInputModal('NEW FOLDER', 'Folder name...', async (name) => {
+      if (!name.trim()) return;
+      Alert.alert(
+        'CREATE FOLDER',
+        `Create folder "${name}" here?`,
+        [
+          {text: 'CANCEL', style: 'cancel'},
+          {text: 'CREATE', onPress: async () => {
+            try {
+              await sendCommand('create_folder', {path: `${currentPath}/${name.trim()}`});
+              await fetchFiles(currentPath);
+            } catch { Alert.alert('ERROR', 'Could not create folder'); }
+          }},
+        ]
+      );
+    });
+  };
+
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) return;
+    setSearching(true);
+    try {
+      const data = await sendCommand('search_files', {path: currentPath, query: searchQuery.trim()});
+      if (Array.isArray(data)) setFiles(data);
+    } catch { Alert.alert('ERROR', 'Search failed'); }
+    finally { setSearching(false); }
   };
 
   const handleBack = () => {
@@ -111,60 +274,296 @@ export default function FileManagerScreen({navigation}: any) {
     }
   };
 
+  const cycleSortBy = () => {
+    const order: ('name' | 'size' | 'date')[] = ['name', 'size', 'date'];
+    const next = order[(order.indexOf(sortBy) + 1) % order.length];
+    setSortBy(next);
+  };
+
   const renderItem = ({item}: {item: FileItem}) => (
-    <TouchableOpacity style={styles.fileRow} onPress={() => handleItemPress(item)}>
-      <Text style={styles.fileIcon}>{getFileIcon(item)}</Text>
+    <TouchableOpacity
+      style={styles.fileRow}
+      onPress={() => handleOpen(item)}
+      onLongPress={() => { setSelectedItem(item); setMenuVisible(true); }}
+      activeOpacity={0.7}>
+      <View style={[styles.iconBox, {borderColor: getIconColor(item) + '44'}]}>
+        <Text style={[styles.fileIcon, {color: getIconColor(item)}]}>{getFileIcon(item)}</Text>
+      </View>
       <View style={styles.fileInfo}>
-        <Text style={styles.fileName}>{item.name}</Text>
+        <Text style={styles.fileName} numberOfLines={1}>{item.name}</Text>
         <Text style={styles.fileMeta}>
-          {item.type === 'folder' ? 'Folder' : item.size} • {item.modified}
+          {item.type === 'folder' ? 'DIR' : item.size} · {item.modified}
         </Text>
       </View>
-      {item.type === 'folder' && <Text style={styles.chevron}>›</Text>}
+      <TouchableOpacity
+        style={styles.moreBtn}
+        onPress={() => { setSelectedItem(item); setMenuVisible(true); }}>
+        <Text style={styles.moreText}>⋮</Text>
+      </TouchableOpacity>
     </TouchableOpacity>
   );
 
+  const pathParts = currentPath.split('/').filter(Boolean);
+
   return (
     <View style={styles.container}>
-      <TouchableOpacity onPress={handleBack} style={styles.backBtn}>
-        <Text style={styles.backText}>← Back</Text>
-      </TouchableOpacity>
+      <StatusBar barStyle="light-content" backgroundColor="#080c12" />
 
-      <Text style={styles.title}>File Manager</Text>
-      <Text style={styles.pathText} numberOfLines={1}>{currentPath}</Text>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={handleBack} style={styles.backBtn}>
+          <Text style={styles.backText}>‹</Text>
+        </TouchableOpacity>
+        <View style={styles.headerCenter}>
+          <Text style={styles.headerTitle}>FILE MANAGER</Text>
+          <Text style={styles.headerSub}>{'// REMOTE FILESYSTEM'}</Text>
+        </View>
+        <TouchableOpacity onPress={handleNewFolder} style={styles.addBtn}>
+          <Text style={styles.addText}>+ DIR</Text>
+        </TouchableOpacity>
+      </View>
 
-      <FlatList
-        data={files}
-        keyExtractor={item => item.name}
-        renderItem={renderItem}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#00FF66" />
+      {/* Path bar */}
+      <View style={styles.pathBar}>
+        <Text style={styles.pathLabel}>PATH </Text>
+        <Text style={styles.pathText} numberOfLines={1}>
+          {pathParts.length > 0 ? pathParts.join(' / ') : '~'}
+        </Text>
+      </View>
+
+      {/* Search + Sort bar */}
+      <View style={styles.searchBar}>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="SEARCH FILES..."
+          placeholderTextColor="#3a5a6a"
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          onSubmitEditing={handleSearch}
+          returnKeyType="search"
+        />
+        {searching
+          ? <ActivityIndicator color="#00e5ff" size="small" style={{marginLeft: 8}} />
+          : <TouchableOpacity onPress={handleSearch} style={styles.searchBtn}>
+              <Text style={styles.searchBtnText}>⌕</Text>
+            </TouchableOpacity>
         }
-        ItemSeparatorComponent={Separator}
-        ListEmptyComponent={EmptyList}
-      />
+        <TouchableOpacity onPress={cycleSortBy} style={styles.sortBtn}>
+          <Text style={styles.sortText}>{sortBy.toUpperCase()} {sortAsc ? '↑' : '↓'}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => setSortAsc(a => !a)} style={styles.sortBtn}>
+          <Text style={styles.sortText}>⇅</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* File count */}
+      <View style={styles.countBar}>
+        <Text style={styles.countText}>
+          {displayFiles.length} ITEM{displayFiles.length !== 1 ? 'S' : ''}
+          {searchQuery ? ` MATCHING "${searchQuery.toUpperCase()}"` : ''}
+        </Text>
+        <TouchableOpacity onPress={onRefresh}>
+          <Text style={styles.countText}>⟳ REFRESH</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Content */}
+      {loading ? (
+        <View style={styles.center}>
+          <ActivityIndicator color="#00e5ff" size="large" />
+          <Text style={styles.loadingText}>SCANNING FILESYSTEM...</Text>
+        </View>
+      ) : error ? (
+        <View style={styles.center}>
+          <Text style={styles.errorIcon}>⚠</Text>
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity style={styles.retryBtn} onPress={() => fetchFiles(currentPath)}>
+            <Text style={styles.retryText}>RETRY</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <FlatList
+          data={displayFiles}
+          keyExtractor={(item, i) => item.name + i}
+          renderItem={renderItem}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#00e5ff" />}
+          ItemSeparatorComponent={() => <View style={styles.separator} />}
+          ListEmptyComponent={<EmptyDir />}
+          contentContainerStyle={styles.listContent}
+        />
+      )}
+
+      {/* File action menu modal */}
+      <Modal visible={menuVisible} transparent animationType="slide" onRequestClose={() => setMenuVisible(false)}>
+        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setMenuVisible(false)}>
+          <View style={styles.menuSheet}>
+            <View style={styles.menuHandle} />
+            <Text style={styles.menuTitle} numberOfLines={1}>{selectedItem?.name}</Text>
+            <Text style={styles.menuSub}>{selectedItem?.type === 'folder' ? 'DIRECTORY' : selectedItem?.size}</Text>
+
+            {[
+              {label: '▶  OPEN ON PC',   action: () => selectedItem && handleOpenOnPC(selectedItem)},
+              {label: '⬇  DOWNLOAD',     action: () => selectedItem && handleDownload(selectedItem)},
+              {label: '✎  RENAME',       action: () => selectedItem && handleRename(selectedItem)},
+              {label: '⊕  COPY TO...',   action: () => selectedItem && handleCopy(selectedItem)},
+              {label: '⇢  MOVE TO...',   action: () => selectedItem && handleMove(selectedItem)},
+              {label: '✕  DELETE',       action: () => selectedItem && handleDelete(selectedItem), danger: true},
+            ].map(({label, action, danger}) => (
+              <TouchableOpacity key={label} style={styles.menuItem} onPress={action}>
+                <Text style={[styles.menuItemText, danger && styles.menuItemDanger]}>{label}</Text>
+              </TouchableOpacity>
+            ))}
+
+            <TouchableOpacity style={styles.menuCancel} onPress={() => setMenuVisible(false)}>
+              <Text style={styles.menuCancelText}>CANCEL</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Input modal (rename / copy / move / new folder) */}
+      <Modal visible={inputModal.visible} transparent animationType="fade" onRequestClose={() => setInputModal(m => ({...m, visible: false}))}>
+        <View style={styles.inputOverlay}>
+          <View style={styles.inputSheet}>
+            <Text style={styles.inputTitle}>{inputModal.title}</Text>
+            <TextInput
+              style={styles.inputField}
+              placeholder={inputModal.placeholder}
+              placeholderTextColor="#3a5a6a"
+              value={inputValue}
+              onChangeText={setInputValue}
+              autoFocus
+            />
+            <View style={styles.inputBtns}>
+              <TouchableOpacity
+                style={styles.inputCancel}
+                onPress={() => setInputModal(m => ({...m, visible: false}))}>
+                <Text style={styles.inputCancelText}>CANCEL</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.inputConfirm}
+                onPress={() => {
+                  setInputModal(m => ({...m, visible: false}));
+                  inputModal.onSubmit(inputValue);
+                }}>
+                <Text style={styles.inputConfirmText}>CONFIRM</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
-function Separator() {
-  return <View style={{height: 1, backgroundColor: '#1E1E1E'}} />;
-}
 
-function EmptyList() {
-  return <Text style={{color: '#555', textAlign: 'center', marginTop: 60}}>No files found</Text>;
-}
 const styles = StyleSheet.create({
-  container: {flex: 1, backgroundColor: '#121212', padding: 20, paddingTop: 60},
-  backBtn: {marginBottom: 16},
-  backText: {color: '#00FF66', fontSize: 16},
-  title: {fontSize: 24, fontWeight: 'bold', color: '#FFFFFF', marginBottom: 4},
-  pathText: {fontSize: 12, color: '#555', marginBottom: 20, fontFamily: 'monospace'},
-  fileRow: {flexDirection: 'row', alignItems: 'center', paddingVertical: 14},
-  fileIcon: {fontSize: 24, marginRight: 14},
+  container: {flex: 1, backgroundColor: '#0a0e14'},
+  listContent: {paddingBottom: 40},
+
+  header: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#080c12',
+    borderBottomWidth: 1, borderBottomColor: '#00e5ff22',
+    paddingTop: 50, paddingBottom: 12, paddingHorizontal: 16,
+  },
+  backBtn: {paddingRight: 12},
+  backText: {color: '#00e5ff', fontSize: 24},
+  headerCenter: {flex: 1, alignItems: 'center'},
+  headerTitle: {color: '#00e5ff', fontSize: 13, fontWeight: '700', letterSpacing: 4},
+  headerSub: {color: '#5a7a94', fontSize: 9, letterSpacing: 2, marginTop: 2},
+  addBtn: {borderWidth: 1, borderColor: '#00e5ff44', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 4},
+  addText: {color: '#00e5ff', fontSize: 10, letterSpacing: 2},
+
+  pathBar: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#0f1520',
+    borderBottomWidth: 1, borderBottomColor: '#00e5ff22',
+    paddingHorizontal: 16, paddingVertical: 10,
+  },
+  pathLabel: {color: '#5a7a94', fontSize: 8, letterSpacing: 3, fontFamily: 'monospace'},
+  pathText: {flex: 1, fontSize: 11, fontFamily: 'monospace', color: '#00e5ff'},
+
+  searchBar: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#0f1520',
+    borderBottomWidth: 1, borderBottomColor: '#00e5ff11',
+    paddingHorizontal: 16, paddingVertical: 8, gap: 8,
+  },
+  searchInput: {
+    flex: 1, backgroundColor: '#0a0e14',
+    borderWidth: 1, borderColor: '#00e5ff22', borderRadius: 4,
+    paddingHorizontal: 12, paddingVertical: 7,
+    color: '#c8d8e8', fontSize: 11, fontFamily: 'monospace', letterSpacing: 1,
+  },
+  searchBtn: {padding: 4},
+  searchBtnText: {color: '#00e5ff', fontSize: 18},
+  sortBtn: {borderWidth: 1, borderColor: '#00e5ff22', paddingHorizontal: 8, paddingVertical: 6, borderRadius: 4},
+  sortText: {color: '#5a7a94', fontSize: 9, letterSpacing: 1},
+
+  countBar: {
+    flexDirection: 'row', justifyContent: 'space-between',
+    paddingHorizontal: 16, paddingVertical: 6,
+    borderBottomWidth: 1, borderBottomColor: '#00e5ff11',
+  },
+  countText: {color: '#3a5a6a', fontSize: 9, letterSpacing: 2, fontFamily: 'monospace'},
+
+  fileRow: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingVertical: 12, paddingHorizontal: 16,
+  },
+  iconBox: {
+    width: 38, height: 38, borderRadius: 6,
+    borderWidth: 1, backgroundColor: '#0f1520',
+    alignItems: 'center', justifyContent: 'center', marginRight: 12,
+  },
+  fileIcon: {fontSize: 16},
   fileInfo: {flex: 1},
-  fileName: {color: '#FFFFFF', fontSize: 15, fontWeight: '500'},
-  fileMeta: {color: '#555', fontSize: 12, marginTop: 2},
-  chevron: {color: '#444', fontSize: 22},
-  separator: {height: 1, backgroundColor: '#1E1E1E'},
-  empty: {color: '#555', textAlign: 'center', marginTop: 60},
+  fileName: {color: '#c8d8e8', fontSize: 14, fontWeight: '500'},
+  fileMeta: {color: '#5a7a94', fontSize: 10, marginTop: 3, fontFamily: 'monospace', letterSpacing: 1},
+  moreBtn: {padding: 8},
+  moreText: {color: '#5a7a94', fontSize: 20},
+  separator: {height: 1, backgroundColor: '#00e5ff11', marginLeft: 66},
+
+  center: {flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 80},
+  loadingText: {color: '#5a7a94', fontSize: 10, letterSpacing: 3, marginTop: 16, fontFamily: 'monospace'},
+  errorIcon: {color: '#ffb300', fontSize: 32, marginBottom: 12},
+  errorText: {color: '#ffb300', fontSize: 10, letterSpacing: 2, fontFamily: 'monospace', textAlign: 'center', paddingHorizontal: 32},
+  retryBtn: {marginTop: 20, borderWidth: 1, borderColor: '#00e5ff44', paddingHorizontal: 24, paddingVertical: 10, borderRadius: 4},
+  retryText: {color: '#00e5ff', fontSize: 11, letterSpacing: 3},
+  emptyText: {color: '#5a7a94', fontSize: 11, letterSpacing: 3, fontFamily: 'monospace'},
+
+  // Menu modal
+  modalOverlay: {flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end'},
+  menuSheet: {
+    backgroundColor: '#0f1520',
+    borderTopWidth: 1, borderTopColor: '#00e5ff33',
+    borderTopLeftRadius: 16, borderTopRightRadius: 16,
+    paddingBottom: 34, paddingHorizontal: 20, paddingTop: 12,
+  },
+  menuHandle: {width: 40, height: 3, backgroundColor: '#00e5ff33', borderRadius: 2, alignSelf: 'center', marginBottom: 16},
+  menuTitle: {color: '#c8d8e8', fontSize: 15, fontWeight: '600', marginBottom: 4},
+  menuSub: {color: '#5a7a94', fontSize: 10, letterSpacing: 2, fontFamily: 'monospace', marginBottom: 16},
+  menuItem: {paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#00e5ff11'},
+  menuItemText: {color: '#c8d8e8', fontSize: 13, letterSpacing: 2},
+  menuItemDanger: {color: '#ff3d3d'},
+  menuCancel: {marginTop: 12, paddingVertical: 14, alignItems: 'center', borderWidth: 1, borderColor: '#00e5ff22', borderRadius: 4},
+  menuCancelText: {color: '#5a7a94', fontSize: 12, letterSpacing: 3},
+
+  // Input modal
+  inputOverlay: {flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'center', alignItems: 'center', padding: 32},
+  inputSheet: {
+    width: '100%', backgroundColor: '#0f1520',
+    borderWidth: 1, borderColor: '#00e5ff33', borderRadius: 8, padding: 24,
+  },
+  inputTitle: {color: '#00e5ff', fontSize: 12, letterSpacing: 4, fontWeight: '700', marginBottom: 16},
+  inputField: {
+    backgroundColor: '#0a0e14', borderWidth: 1, borderColor: '#00e5ff33',
+    borderRadius: 4, padding: 12, color: '#c8d8e8',
+    fontSize: 13, fontFamily: 'monospace', marginBottom: 20,
+  },
+  inputBtns: {flexDirection: 'row', gap: 12},
+  inputCancel: {flex: 1, paddingVertical: 12, alignItems: 'center', borderWidth: 1, borderColor: '#00e5ff22', borderRadius: 4},
+  inputCancelText: {color: '#5a7a94', fontSize: 11, letterSpacing: 2},
+  inputConfirm: {flex: 1, paddingVertical: 12, alignItems: 'center', backgroundColor: '#00e5ff11', borderWidth: 1, borderColor: '#00e5ff', borderRadius: 4},
+  inputConfirmText: {color: '#00e5ff', fontSize: 11, letterSpacing: 2, fontWeight: '700'},
 });
