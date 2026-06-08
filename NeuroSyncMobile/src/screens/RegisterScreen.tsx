@@ -1,4 +1,5 @@
 import React, {useState} from 'react';
+import {registerUser} from '../services/authService';
 import {
   View,
   Text,
@@ -15,24 +16,28 @@ export default function RegisterScreen({navigation}: any) {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
-  const handleRegister = () => {
-    if (!name || !email || !password || !confirmPassword) {
-      Alert.alert('Error', 'Please fill in all fields');
-      return;
-    }
-    if (password !== confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match');
-      return;
-    }
-    if (password.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters');
-      return;
-    }
-    // Will connect to backend later
+  const handleRegister = async () => {
+  if (!name || !email || !password || !confirmPassword) {
+    Alert.alert('Error', 'Please fill in all fields');
+    return;
+  }
+  if (password !== confirmPassword) {
+    Alert.alert('Error', 'Passwords do not match');
+    return;
+  }
+  if (password.length < 6) {
+    Alert.alert('Error', 'Password must be at least 6 characters');
+    return;
+  }
+  try {
+    await registerUser(email, password);
     Alert.alert('Success', 'Account created!', [
       {text: 'OK', onPress: () => navigation.replace('Login')},
     ]);
-  };
+  } catch {
+    Alert.alert('Error', 'Registration failed. Email may already exist.');
+  }
+};
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>

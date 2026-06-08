@@ -20,6 +20,7 @@ import {
 import Svg, { Circle, Line, Text as SvgText } from 'react-native-svg';
 import { Colors, Fonts, Spacing, Radius } from '../theme';
 import { CornerBrackets, ScanlineOverlay } from '../components/HudComponents';
+import {loginUser} from '../services/authService';
 
 GoogleSignin.configure({
   webClientId: '639946205950-mqi82vf5budradj2r9jlatfsaemkam51.apps.googleusercontent.com',
@@ -54,13 +55,18 @@ export default function LoginScreen({ navigation }: any) {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleEmailLogin = () => {
-    if (!email || !password) {
-      Alert.alert('AUTH ERROR', 'Please enter email and password');
-      return;
-    }
+  const handleEmailLogin = async () => {
+  if (!email || !password) {
+    Alert.alert('Error', 'Please enter email and password');
+    return;
+  }
+  try {
+    await loginUser(email, password);
     navigation.replace('Devices');
-  };
+  } catch {
+    Alert.alert('Error', 'Invalid email or password');
+  }
+};
 
   const handleGoogleLogin = async () => {
     try {
