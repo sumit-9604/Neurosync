@@ -32,27 +32,33 @@ const SPECIAL_KEYS = [
   { label: 'CTRL+A', value: 'ctrl+a', color: Colors.amber },
 ];
 
-export default function KeyboardScreen({ navigation }: any) {
+export default function KeyboardScreen({ navigation, route }: any) {
+  const deviceId = route?.params?.device?.device_id ?? route?.params?.deviceId ?? '';
+  const deviceName = route?.params?.device?.name || route?.params?.device?.hostname || 'UNKNOWN';
   const [text, setText] = useState('');
   const [status, setStatus] = useState('READY');
   const [lastKey, setLastKey] = useState('—');
 
   const sendKey = async (key: string, label: string) => {
-    try {
-      setStatus('TRANSMITTING');
-      setLastKey(label);
-      await sendCommand('sumit-pc', `key:${key}`);
-      setTimeout(() => setStatus('READY'), 800);
-    } catch {
-      setStatus('ERR: DEVICE UNREACHABLE');
+  try {
+    setStatus('TRANSMITTING');
+    setLastKey(label);
+    if (key.includes('+')) {
+      await sendCommand(deviceId, 'hotkey', { keys: key.split('+') });
+    } else {
+      await sendCommand(deviceId, 'press_key', { key });
     }
-  };
+    setTimeout(() => setStatus('READY'), 800);
+  } catch {
+    setStatus('ERR: DEVICE UNREACHABLE');
+  }
+};
 
   const sendText = async () => {
     if (!text.trim()) return;
     try {
       setStatus(`TYPING: "${text}"`);
-      await sendCommand('sumit-pc', `type:${text}`);
+      await sendCommand(deviceId, `type:${text}`);
       setText('');
       setTimeout(() => setStatus('READY'), 1000);
     } catch {
@@ -68,7 +74,7 @@ export default function KeyboardScreen({ navigation }: any) {
       <HudTopBar
         title="KEYBOARD"
         onBack={() => navigation.goBack()}
-        rightLabel="SUMIT-PC"
+        rightLabel={deviceName}
         pulse
       />
 

@@ -96,7 +96,9 @@ function createDashboardWindow() {
 }
 
 function startAgent(token) {
-  const agentScript = path.join(__dirname, '..', 'desktop-agent', 'agent', 'main.py');
+  const agentScript = app.isPackaged
+  ? path.join(process.resourcesPath, 'desktop-agent', 'agent', 'main.py')
+  : path.join(__dirname, '..', 'desktop-agent', 'agent', 'main.py');
   const wsUrl = `wss://${BACKEND}/ws`;
   const env = { ...process.env, NEUROSYNC_TOKEN: token || '' };
 
