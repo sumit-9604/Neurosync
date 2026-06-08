@@ -1,11 +1,13 @@
 import logging
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
+from sqlalchemy.orm import Session
+from app.db.database import get_db
+from app.models.device import Device
 
 logger = logging.getLogger("devices")
 router = APIRouter()
 
-# Import shared manager — set after app starts
 _manager = None
 
 def set_manager(manager):
@@ -14,31 +16,32 @@ def set_manager(manager):
 
 
 @router.get("/devices")
-async def get_devices():
-    if _manager is None:
-        return JSONResponse(status_code=503, content={"error": "Manager not ready"})
-
-    devices = []
-    for device_id in _manager.get_all_devices():
-        devices.append({
-            "device_id": device_id,
-            "status": "online"
+async def get_devices(db: Session = Depends(get_db)):
+    devices = db.query(Device).all()
+    result = []
+    for device in devices:
+        # Check if currently online in memory
+        is_online = _manager and _manager.get_device(device.device_id) is not None
+        result.append({
+            "device_id": device.device_id,
+            "hostname": device.hostname,
+            "os": device.os,
+            "status": "online" if is_online else "offline",
+            "last_seen": str(device.last_seen) if device.last_seen else None
         })
-        logger.info(
-        f"Devices API sees: {_manager.get_all_devices()}"
-    )
-
-
-    return {"devices": devices, "total": len(devices)}
+    return {"devices": result, "total": len(result)}
 
 
 @router.get("/devices/{device_id}")
-async def get_device(device_id: str):
-    if _manager is None:
-        return JSONResponse(status_code=503, content={"error": "Manager not ready"})
-
-    ws = _manager.get_device(device_id)
-    if not ws:
+async def get_device(device_id: str, db: Session = Depends(get_db)):
+    device = db.query(Device).filter(Device.device_id == device_id).first()
+    if not device:
         return JSONResponse(status_code=404, content={"error": f"Device {device_id} not found"})
-
-    return {"device_id": device_id, "status": "online"}
+    is_online = _manager and _manager.get_device(device_id) is not None
+    return {
+        "device_id": device.device_id,
+        "hostname": device.hostname,
+        "os": device.os,
+        "status": "online" if is_online else "offline",
+        "last_seen": str(device.last_seen) if device.last_seen else None
+    }
