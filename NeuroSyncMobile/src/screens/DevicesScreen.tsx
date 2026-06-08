@@ -6,6 +6,7 @@ import {GoogleSignin} from '@react-native-google-signin/google-signin';
 import {Colors, Fonts, Spacing, Radius} from '../theme';
 import {CornerBrackets, ScanlineOverlay, HudDivider} from '../components/HudComponents';
 import {api} from '../services/apiClient';
+import {logoutUser} from '../services/authService';
 
 export default function DevicesScreen({navigation}: any) {
   const [devices, setDevices] = useState([]);
@@ -38,6 +39,7 @@ export default function DevicesScreen({navigation}: any) {
         onPress: async () => {
           try {
             await GoogleSignin.signOut();
+            await logoutUser();
             navigation.replace('Login');
           } catch {
             Alert.alert('ERROR', 'Could not sign out. Try again.');

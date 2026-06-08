@@ -1,10 +1,14 @@
-const { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage } = require('electron');
+const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
 
 let mainWindow;
-let tray;
 let agentProcess;
+let statsProcess;
+
+const pythonExe = process.platform === 'win32'
+  ? 'python'
+  : '/Library/Frameworks/Python.framework/Versions/3.12/bin/python3';
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -19,16 +23,13 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
     },
-    icon: path.join(__dirname, 'assets', 'icon.png'),
   });
 
   mainWindow.loadFile('renderer/index.html');
-
   mainWindow.on('closed', () => { mainWindow = null; });
 }
 
 function startAgent() {
-  const pythonExe = process.platform === 'win32' ? 'python' : '/Library/Frameworks/Python.framework/Versions/3.12/bin/python3';
   const agentScript = path.join(__dirname, '..', 'desktop-agent', 'agent', 'main.py');
   const wsUrl = 'wss://neurosync-production-0f2b.up.railway.app/ws';
 
@@ -44,18 +45,47 @@ function startAgent() {
     if (mainWindow) mainWindow.webContents.send('agent-log', line);
   });
 
-  agentProcess.on('close', (code) => {
-    if (mainWindow) mainWindow.webContents.send('agent-status', 'disconnected');
+  agentProcess.on('close', () => {
+  if (mainWindow) mainWindow.webContents.send('agent-status', 'disconnected');
+  // Auto-restart after 5 seconds
+  setTimeout(startAgent, 5000);
+});
+}
+
+function startStats() {
+  const statsScript = path.join(__dirname, 'renderer', 'stats.py');
+
+  statsProcess = spawn(pythonExe, [statsScript]);
+
+  let buffer = '';
+  statsProcess.stdout.on('data', (data) => {
+    buffer += data.toString();
+    const lines = buffer.split('\n');
+    buffer = lines.pop(); // keep incomplete line
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      try {
+        const stats = JSON.parse(line.trim());
+        if (mainWindow) mainWindow.webContents.send('stats-update', stats);
+      } catch {}
+    }
+  });
+
+  statsProcess.on('close', () => {
+    // Restart stats after 3s if it crashes
+    setTimeout(startStats, 3000);
   });
 }
 
 app.whenReady().then(() => {
   createWindow();
   startAgent();
+  startStats();
 });
 
 app.on('window-all-closed', () => {
   if (agentProcess) agentProcess.kill();
+  if (statsProcess) statsProcess.kill();
   if (process.platform !== 'darwin') app.quit();
 });
 
