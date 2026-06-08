@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<title>NeuroSync Login</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&display=swap');
+  :root {
+    --bg: #0a0e14;
+    --bg-card: #0f1520;
+    --cyan: #00e5ff;
+    --cyan-border: #00e5ff22;
+    --cyan-faint: #00e5ff11;
+    --text: #c8d8e8;
+    --text-dim: #5a7a94;
+    --red: #ff3d3d;
+    --font-mono: 'Share Tech Mono', monospace;
+    --font-ui: 'Rajdhani', sans-serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-ui);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    user-select: none;
+  }
+  #titlebar {
+    -webkit-app-region: drag;
+    height: 36px;
+    background: #080c12;
+    border-bottom: 1px solid var(--cyan-border);
+    display: flex;
+    align-items: center;
+    padding: 0 14px;
+    gap: 10px;
+  }
+  .logo { color: var(--cyan); font-family: var(--font-ui); font-weight: 700; font-size: 12px; letter-spacing: 5px; flex: 1; }
+  .winbtn {
+    -webkit-app-region: no-drag;
+    width: 26px; height: 26px; border-radius: 4px; border: none;
+    background: transparent; color: var(--text-dim); cursor: pointer;
+    font-size: 13px; display: flex; align-items: center; justify-content: center;
+  }
+  .winbtn:hover { background: var(--cyan-border); color: var(--cyan); }
+  .winbtn.close:hover { background: rgba(255,61,61,0.2); color: var(--red); }
+  #main {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 32px;
+  }
+  .card { width: 100%; max-width: 360px; position: relative; }
+  .card::before { content: ''; position: absolute; top: 0; left: 0; width: 14px; height: 14px; border-top: 1px solid var(--cyan); border-left: 1px solid var(--cyan); }
+  .card::after  { content: ''; position: absolute; top: 0; right: 0; width: 14px; height: 14px; border-top: 1px solid var(--cyan); border-right: 1px solid var(--cyan); }
+  .corner-b::before { content: ''; position: absolute; bottom: 0; left: 0; width: 14px; height: 14px; border-bottom: 1px solid var(--cyan); border-left: 1px solid var(--cyan); }
+  .corner-b::after  { content: ''; position: absolute; bottom: 0; right: 0; width: 14px; height: 14px; border-bottom: 1px solid var(--cyan); border-right: 1px solid var(--cyan); }
+  .inner { padding: 28px 24px; }
+  .ns-logo { text-align: center; margin-bottom: 28px; }
+  .ns-logo .ring {
+    width: 64px; height: 64px; border-radius: 50%;
+    border: 1px solid var(--cyan-border);
+    display: inline-flex; align-items: center; justify-content: center;
+    margin-bottom: 12px; position: relative;
+  }
+  .ns-logo .ring::before { content: ''; position: absolute; inset: 6px; border-radius: 50%; border: 1px solid var(--cyan-border); }
+  .ns-logo .ring span { font-family: var(--font-mono); font-size: 14px; color: var(--cyan); }
+  .ns-logo h1 { font-size: 20px; letter-spacing: 6px; color: var(--cyan); font-weight: 700; }
+  .ns-logo p  { font-family: var(--font-mono); font-size: 8px; color: var(--text-dim); letter-spacing: 2px; margin-top: 4px; }
+  .divider { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
+  .divider-line { flex: 1; height: 1px; background: var(--cyan-border); }
+  .divider-label { font-family: var(--font-mono); font-size: 8px; color: var(--text-dim); letter-spacing: 3px; }
+  .field { margin-bottom: 14px; }
+  .field label { display: block; font-family: var(--font-mono); font-size: 8px; color: var(--text-dim); letter-spacing: 3px; margin-bottom: 6px; }
+  .field input {
+    width: 100%; background: var(--bg-card); border: 1px solid var(--cyan-border);
+    border-radius: 4px; padding: 11px 13px; color: var(--text);
+    font-family: var(--font-mono); font-size: 13px; letter-spacing: 1px;
+    outline: none; transition: border-color 0.2s;
+  }
+  .field input:focus { border-color: var(--cyan); }
+  #error-msg { font-family: var(--font-mono); font-size: 10px; color: var(--red); letter-spacing: 1px; margin-bottom: 12px; min-height: 16px; text-align: center; }
+  #login-btn {
+    width: 100%; background: var(--cyan-faint); border: 1px solid var(--cyan);
+    border-radius: 4px; padding: 13px; color: var(--cyan);
+    font-family: var(--font-ui); font-size: 13px; font-weight: 700;
+    letter-spacing: 4px; cursor: pointer; transition: background 0.2s;
+  }
+  #login-btn:hover { background: rgba(0,229,255,0.12); }
+  #login-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .status { font-family: var(--font-mono); font-size: 9px; color: var(--text-dim); text-align: center; margin-top: 16px; letter-spacing: 1px; }
+</style>
+</head>
+<body>
+
+<div id="titlebar">
+  <span class="logo">NEUROSYNC</span>
+  <button class="winbtn" onclick="window.electronAPI.minimizeWindow()">─</button>
+  <button class="winbtn close" onclick="window.electronAPI.closeWindow()">✕</button>
+</div>
+
+<div id="main">
+  <div class="card">
+    <div class="corner-b"></div>
+    <div class="inner">
+      <div class="ns-logo">
+        <div class="ring"><span>NS</span></div>
+        <h1>NEUROSYNC</h1>
+        <p>DESKTOP CONTROL AGENT v1.0</p>
+      </div>
+      <div class="divider">
+        <div class="divider-line"></div>
+        <span class="divider-label">AUTHENTICATION</span>
+        <div class="divider-line"></div>
+      </div>
+      <div class="field">
+        <label>EMAIL</label>
+        <input type="email" id="email" placeholder="user@domain.com" autocomplete="off"/>
+      </div>
+      <div class="field">
+        <label>PASSWORD</label>
+        <input type="password" id="password" placeholder="••••••••"/>
+      </div>
+      <div id="error-msg"></div>
+      <button id="login-btn" onclick="handleLogin()">AUTHENTICATE →</button>
+      <p class="status" id="status-text">// ENTER CREDENTIALS TO CONNECT</p>
+    </div>
+  </div>
+</div>
+
+<script>
+  async function handleLogin() {
+    const email = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+    const btn = document.getElementById('login-btn');
+    const errEl = document.getElementById('error-msg');
+    const statusEl = document.getElementById('status-text');
+    errEl.textContent = '';
+    if (!email || !password) { errEl.textContent = '// EMAIL AND PASSWORD REQUIRED'; return; }
+    btn.disabled = true;
+    btn.textContent = 'AUTHENTICATING...';
+    statusEl.textContent = '// CONNECTING TO BACKEND...';
+    try {
+      const result = await window.electronAPI.login(email, password);
+      if (result.success) {
+        statusEl.textContent = '// AUTHENTICATED — LAUNCHING DASHBOARD...';
+      } else {
+        errEl.textContent = '// ' + (result.error || 'AUTHENTICATION FAILED').toUpperCase();
+        btn.disabled = false;
+        btn.textContent = 'AUTHENTICATE →';
+        statusEl.textContent = '// ENTER CREDENTIALS TO CONNECT';
+      }
+    } catch {
+      errEl.textContent = '// COULD NOT REACH BACKEND';
+      btn.disabled = false;
+      btn.textContent = 'AUTHENTICATE →';
+    }
+  }
+  document.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleLogin(); });
+  window.electronAPI.getSavedEmail().then(email => {
+    if (email) document.getElementById('email').value = email;
+  });
+</script>
+</body>
+</html>

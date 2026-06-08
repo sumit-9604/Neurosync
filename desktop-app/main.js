@@ -1,16 +1,83 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
+const fs = require('fs');
+const https = require('https');
 
 let mainWindow;
 let agentProcess;
 let statsProcess;
+let authToken = null;
 
 const pythonExe = process.platform === 'win32'
   ? 'python'
   : '/Library/Frameworks/Python.framework/Versions/3.12/bin/python3';
 
-function createWindow() {
+const BACKEND = 'neurosync-production-0f2b.up.railway.app';
+const CREDENTIALS_FILE = path.join(app.getPath('userData'), 'credentials.json');
+
+function saveCredentials(email, token) {
+  fs.writeFileSync(CREDENTIALS_FILE, JSON.stringify({ email, token }));
+}
+
+function loadCredentials() {
+  try {
+    if (fs.existsSync(CREDENTIALS_FILE)) {
+      return JSON.parse(fs.readFileSync(CREDENTIALS_FILE, 'utf8'));
+    }
+  } catch {}
+  return null;
+}
+
+function clearCredentials() {
+  try { fs.unlinkSync(CREDENTIALS_FILE); } catch {}
+}
+
+function loginToBackend(email, password) {
+  return new Promise((resolve, reject) => {
+    const body = JSON.stringify({ email, password });
+    const req = https.request({
+      hostname: BACKEND,
+      path: '/api/v1/login',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(body),
+      },
+    }, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        try {
+          const parsed = JSON.parse(data);
+          if (res.statusCode === 200) resolve(parsed);
+          else reject(new Error(parsed.detail || 'Login failed'));
+        } catch { reject(new Error('Invalid response')); }
+      });
+    });
+    req.on('error', reject);
+    req.write(body);
+    req.end();
+  });
+}
+
+function createLoginWindow() {
+  mainWindow = new BrowserWindow({
+    width: 480,
+    height: 420,
+    resizable: false,
+    frame: false,
+    backgroundColor: '#0a0e14',
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+  mainWindow.loadFile('renderer/login.html');
+}
+
+function createDashboardWindow() {
   mainWindow = new BrowserWindow({
     width: 1100,
     height: 700,
@@ -24,44 +91,40 @@ function createWindow() {
       nodeIntegration: false,
     },
   });
-
   mainWindow.loadFile('renderer/index.html');
   mainWindow.on('closed', () => { mainWindow = null; });
 }
 
-function startAgent() {
+function startAgent(token) {
   const agentScript = path.join(__dirname, '..', 'desktop-agent', 'agent', 'main.py');
-  const wsUrl = 'wss://neurosync-production-0f2b.up.railway.app/ws';
+  const wsUrl = `wss://${BACKEND}/ws`;
+  const env = { ...process.env, NEUROSYNC_TOKEN: token || '' };
 
-  agentProcess = spawn(pythonExe, [agentScript, '--url', wsUrl]);
+  agentProcess = spawn(pythonExe, [agentScript, '--url', wsUrl], { env });
 
   agentProcess.stdout.on('data', (data) => {
     const line = data.toString().trim();
     if (mainWindow) mainWindow.webContents.send('agent-log', line);
   });
-
   agentProcess.stderr.on('data', (data) => {
     const line = data.toString().trim();
     if (mainWindow) mainWindow.webContents.send('agent-log', line);
   });
-
   agentProcess.on('close', () => {
-  if (mainWindow) mainWindow.webContents.send('agent-status', 'disconnected');
-  // Auto-restart after 5 seconds
-  setTimeout(startAgent, 5000);
-});
+    if (mainWindow) mainWindow.webContents.send('agent-status', 'disconnected');
+    setTimeout(() => startAgent(authToken), 5000);
+  });
 }
 
 function startStats() {
   const statsScript = path.join(__dirname, 'renderer', 'stats.py');
-
   statsProcess = spawn(pythonExe, [statsScript]);
 
   let buffer = '';
   statsProcess.stdout.on('data', (data) => {
     buffer += data.toString();
     const lines = buffer.split('\n');
-    buffer = lines.pop(); // keep incomplete line
+    buffer = lines.pop();
     for (const line of lines) {
       if (!line.trim()) continue;
       try {
@@ -70,17 +133,28 @@ function startStats() {
       } catch {}
     }
   });
-
-  statsProcess.on('close', () => {
-    // Restart stats after 3s if it crashes
-    setTimeout(startStats, 3000);
-  });
+  statsProcess.on('close', () => setTimeout(startStats, 3000));
 }
 
-app.whenReady().then(() => {
-  createWindow();
-  startAgent();
+async function launchApp(email, token) {
+  authToken = token;
+  saveCredentials(email, token);
+  if (mainWindow) mainWindow.close();
+  createDashboardWindow();
+  startAgent(token);
   startStats();
+}
+
+app.whenReady().then(async () => {
+  const saved = loadCredentials();
+  if (saved?.token) {
+    authToken = saved.token;
+    createDashboardWindow();
+    startAgent(saved.token);
+    startStats();
+  } else {
+    createLoginWindow();
+  }
 });
 
 app.on('window-all-closed', () => {
@@ -94,4 +168,30 @@ ipcMain.on('window-minimize', () => mainWindow?.minimize());
 ipcMain.on('window-maximize', () => {
   if (mainWindow?.isMaximized()) mainWindow.unmaximize();
   else mainWindow?.maximize();
+});
+
+ipcMain.handle('login', async (_, email, password) => {
+  try {
+    const data = await loginToBackend(email, password);
+    const token = data.token || data.access_token;
+    if (!token) return { success: false, error: 'No token received' };
+    await launchApp(email, token);
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('get-saved-email', async () => {
+  const saved = loadCredentials();
+  return saved?.email || null;
+});
+
+ipcMain.handle('logout', async () => {
+  clearCredentials();
+  authToken = null;
+  if (agentProcess) { agentProcess.kill(); agentProcess = null; }
+  if (statsProcess) { statsProcess.kill(); statsProcess = null; }
+  if (mainWindow) mainWindow.close();
+  createLoginWindow();
 });
