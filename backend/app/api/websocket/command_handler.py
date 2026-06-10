@@ -23,24 +23,36 @@ class CommandRequest(BaseModel):
     payload: dict = {}
 
 
-def _save_device_to_db(device_id: str, hostname: str, os: str = None, os_version: str = None):
+def _save_device_to_db(info: dict):
     db = SessionLocal()
     try:
-        device = db.query(Device).filter(Device.device_id == device_id).first()
+        device = db.query(Device).filter(Device.device_id == info["device_id"]).first()
         if device:
-            device.status = "online"
-            device.hostname = hostname
+            device.hostname    = info.get("hostname", device.hostname)
+            device.username    = info.get("username")
+            device.os          = info.get("os")
+            device.os_version  = info.get("os_version")
+            device.ip_address  = info.get("ip_address")
+            device.mac_address = info.get("mac_address")
+            device.cpu         = info.get("cpu")
+            device.ram_gb      = info.get("ram_gb")
+            device.status      = "online"
         else:
             device = Device(
-                device_id=device_id,
-                hostname=hostname,
-                os=os,
-                os_version=os_version,
-                status="online"
+                device_id   = info["device_id"],
+                hostname    = info.get("hostname", "unknown"),
+                username    = info.get("username"),
+                os          = info.get("os"),
+                os_version  = info.get("os_version"),
+                ip_address  = info.get("ip_address"),
+                mac_address = info.get("mac_address"),
+                cpu         = info.get("cpu"),
+                ram_gb      = info.get("ram_gb"),
+                status      = "online"
             )
             db.add(device)
         db.commit()
-        logger.info(f"Device saved to DB: {device_id}")
+        logger.info(f"Device saved to DB: {info['device_id']}")
     except Exception as e:
         logger.error(f"Failed to save device to DB: {e}")
         db.rollback()
@@ -74,21 +86,31 @@ async def handle_agent_connection(websocket: WebSocket, manager: ConnectionManag
         data = json.loads(raw)
 
         device_id = data.get("device_id")
-        hostname = data.get("hostname", "unknown")
-        os = data.get("os")
-        os_version = data.get("os_version")
 
         if not device_id:
             await websocket.send_json({"error": "device_id required"})
             await websocket.close()
             return
 
+        # Build full info dict from registration message
+        info = {
+            "device_id":   device_id,
+            "hostname":    data.get("hostname", "unknown"),
+            "username":    data.get("username"),
+            "os":          data.get("os"),
+            "os_version":  data.get("os_version"),
+            "ip_address":  data.get("ip_address"),
+            "mac_address": data.get("mac_address"),
+            "cpu":         data.get("cpu"),
+            "ram_gb":      data.get("ram_gb"),
+        }
+
         # Register in memory
         manager.connected_agents[device_id] = websocket
-        logger.info(f"Agent registered: {device_id} ({hostname})")
+        logger.info(f"Agent registered: {device_id} ({info['hostname']})")
 
-        # ✅ Save to DB
-        _save_device_to_db(device_id, hostname, os, os_version)
+        # Save full info to DB
+        _save_device_to_db(info)
 
         await websocket.send_json({
             "type": "registered",
@@ -118,7 +140,6 @@ async def handle_agent_connection(websocket: WebSocket, manager: ConnectionManag
     finally:
         if device_id:
             manager.disconnect(device_id)
-            # ✅ Mark offline in DB
             _set_device_offline(device_id)
 
 

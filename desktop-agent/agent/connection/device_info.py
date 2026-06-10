@@ -1,25 +1,45 @@
-import platform
-import socket
 import uuid
-import os
-
-def get_device_id() -> str:
-    """Generate a stable unique device ID (based on MAC address and hostname)."""
-    # Try to get MAC address
-    mac = uuid.getnode()
-    if mac != uuid.getnode():
-        # Fallback: use hostname + random
-        return socket.gethostname()
-    return str(uuid.UUID(int=mac))
+import socket
+import platform
+import getpass
+import psutil
 
 def get_device_info() -> dict:
-    """Return a dict with device identification and system details."""
+    # Get primary local IP
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+    except Exception:
+        ip = "unknown"
+
+    # Get MAC address
+    try:
+        import uuid as _uuid
+        mac = ':'.join([
+            '{:02x}'.format((uuid.getnode() >> i) & 0xff)
+            for i in range(0, 48, 8)
+        ][::-1])
+    except Exception:
+        mac = "unknown"
+
+    # CPU and RAM
+    try:
+        cpu = platform.processor() or "unknown"
+        ram_gb = str(round(psutil.virtual_memory().total / (1024 ** 3), 1))
+    except Exception:
+        cpu = "unknown"
+        ram_gb = "unknown"
+
     return {
-        "device_id": get_device_id(),
-        "hostname": socket.gethostname(),
-        "os": platform.system(),
-        "os_version": platform.release(),
-        "architecture": platform.machine(),
-        "cpu_count": os.cpu_count(),
-        "python_version": platform.python_version(),
+        "device_id":   str(uuid.getnode()),          # stable hardware-based ID
+        "hostname":    socket.gethostname(),
+        "username":    getpass.getuser(),             # Windows login name
+        "os":          platform.system(),
+        "os_version":  platform.version(),
+        "ip_address":  ip,
+        "mac_address": mac,
+        "cpu":         cpu,
+        "ram_gb":      ram_gb,
     }
