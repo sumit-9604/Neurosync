@@ -1,42 +1,43 @@
-// NeuroSync — JARVIS HUD Theme
-// Drop this file at src/theme/index.ts
 
 export const Colors = {
-  // Backgrounds
-  bg:        '#060d12',   // deepest background
-  bgCard:    '#0a1820',   // card / panel surface
-  bgInput:   '#0d1f2b',   // input fields
 
-  // Primary accent — cyan
-  cyan:      '#00FFFF',
-  cyanDim:   'rgba(0,255,255,0.6)',
-  cyanFaint: 'rgba(0,255,255,0.15)',
-  cyanBorder:'rgba(0,255,255,0.25)',
+  bg:         '#080B0F',
+  bgCard:     '#0E1318',
+  bgElevated: '#131A22',
+  bgInput:    '#0C1016',
 
-  // Secondary accents
-  amber:     '#FFAA00',
-  amberDim:  'rgba(255,170,0,0.6)',
-  amberBorder:'rgba(255,170,0,0.25)',
-  red:       '#FF4444',
-  redBorder: 'rgba(255,68,68,0.25)',
-  blue:      '#44AAFF',
 
-  // Text
-  textPrimary:   '#CCF0FF',   // body text on dark bg
-  textSecondary: 'rgba(180,230,255,0.5)',
-  textMuted:     'rgba(180,230,255,0.25)',
+  violet:      '#7B5EFF',
+  violetDim:   'rgba(123,94,255,0.55)',
+  violetFaint: 'rgba(123,94,255,0.12)',
+  violetBorder:'rgba(123,94,255,0.28)',
 
-  // Divider
-  divider: 'rgba(0,255,255,0.12)',
+
+  magenta:      '#FF2D78',
+  magentaDim:   'rgba(255,45,120,0.55)',
+  magentaFaint: 'rgba(255,45,120,0.1)',
+  magentaBorder:'rgba(255,45,120,0.28)',
+
+
+  online:  '#00E5A0',
+  offline: '#FF4466',
+  warn:    '#FFB347',
+
+
+  textPrimary:   '#E8E0FF',
+  textSecondary: 'rgba(200,190,240,0.55)',
+  textMuted:     'rgba(160,150,210,0.3)',
+
+
+  grid:    'rgba(123,94,255,0.08)',
+  divider: 'rgba(123,94,255,0.15)',
 };
 
 export const Fonts = {
-  // Add these to your project:
-  // npx expo install @expo-google-fonts/rajdhani @expo-google-fonts/share-tech-mono
-  // OR link them via react-native.config.js if bare RN
-  hud:   'ShareTechMono-Regular',   // numbers, values
-  ui:    'Rajdhani-SemiBold',       // labels, headings
-  uiReg: 'Rajdhani-Regular',       // body text in screens
+  mono:    'SpaceMono-Regular',
+  display: 'Rajdhani-Bold',
+  ui:      'Rajdhani-SemiBold',
+  body:    'Rajdhani-Regular',
 };
 
 export const Spacing = {
@@ -49,13 +50,12 @@ export const Spacing = {
 };
 
 export const Radius = {
-  sm: 6,
+  sm: 4,
   md: 8,
-  lg: 12,
+  lg: 14,
   pill: 99,
 };
 
-// Shared stylesheet fragments
 export const SharedStyles = {
   screen: {
     flex: 1,
@@ -65,15 +65,16 @@ export const SharedStyles = {
   },
   card: {
     backgroundColor: Colors.bgCard,
-    borderWidth: 0.5,
-    borderColor: Colors.cyanBorder,
+    borderWidth: 1,
+    borderColor: Colors.violetBorder,
     borderRadius: Radius.md,
     padding: Spacing.md,
   },
-  sectionLabel: {
-    fontSize: 10,
-    color: Colors.textSecondary,
+  label: {
+    fontSize: 9,
+    color: Colors.textMuted,
     letterSpacing: 3,
-    marginBottom: Spacing.sm,
+    fontFamily: Fonts.ui,
+    textTransform: 'uppercase' as const,
   },
 };

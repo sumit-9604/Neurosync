@@ -1,124 +1,191 @@
-// src/screens/DevicesScreen.tsx — JARVIS HUD theme
+// src/screens/DevicesScreen.tsx — Neural Dark theme
 
-import React, {useEffect, useState} from 'react';
-import {View, Text, TouchableOpacity, StyleSheet, Alert, FlatList, ActivityIndicator} from 'react-native';
-import {GoogleSignin} from '@react-native-google-signin/google-signin';
-import {Colors, Fonts, Spacing, Radius} from '../theme';
-import {CornerBrackets, ScanlineOverlay, HudDivider} from '../components/HudComponents';
-import {api} from '../services/apiClient';
-import {logoutUser} from '../services/authService';
+import React, { useEffect, useState } from 'react';
+import {
+  View, Text, TouchableOpacity, StyleSheet,
+  Alert, FlatList, ActivityIndicator, StatusBar,
+} from 'react-native';
+import { Colors, Fonts, Spacing, Radius } from '../theme';
+import { api } from '../services/apiClient';
+import { logoutUser } from '../services/authService';
 
-export default function DevicesScreen({navigation}: any) {
-  const [devices, setDevices] = useState([]);
-  const [loading, setLoading] = useState(true);
+function GridLines() {
+  return (
+    <View style={grid.wrap} pointerEvents="none">
+      {Array.from({ length: 8 }).map((_, i) => (
+        <View key={i} style={grid.row} />
+      ))}
+    </View>
+  );
+}
 
-  useEffect(() => {
-    fetchDevices();
-  }, []);
+const grid = StyleSheet.create({
+  wrap: { ...StyleSheet.absoluteFillObject, flexDirection: 'column', zIndex: 0 },
+  row:  { flex: 1, borderBottomWidth: 0.5, borderBottomColor: Colors.grid },
+});
 
-  const fetchDevices = async () => {
-  try {
-    setLoading(true);
-    const response = await api.get('/api/v1/devices');
-    console.log('Devices response:', JSON.stringify(response.data));
-    setDevices(response.data.devices || response.data);
-  } catch (error) {
-    console.log('Devices error:', error);
-    Alert.alert('ERROR', 'Could not fetch devices. Is the backend running?');
-  } finally {
-    setLoading(false);
-  }
-};
+function DeviceCard({ item, onPress }: { item: any; onPress: () => void }) {
+  const isOnline = item.status === 'online';
+  const name     = item.hostname  || item.device_id || 'UNKNOWN';
+  const user     = item.username  ? `@${item.username}` : '';
+  const os       = item.os       || 'Windows';
+  const cpu      = item.cpu      || '';
+  const ram      = item.ram_gb   ? `${item.ram_gb} GB RAM` : '';
+  const ip       = item.ip_address || '';
+
+  return (
+    <TouchableOpacity style={card.wrap} onPress={onPress} activeOpacity={0.75}>
+      {/* left accent bar */}
+      <View style={[card.accent, { backgroundColor: isOnline ? Colors.online : Colors.offline }]} />
+
+      <View style={card.body}>
+        {/* top row: name + status badge */}
+        <View style={card.topRow}>
+          <Text style={card.name} numberOfLines={1}>{name}</Text>
+          <View style={[card.badge, { borderColor: isOnline ? Colors.online : Colors.offline }]}>
+            <View style={[card.dot, { backgroundColor: isOnline ? Colors.online : Colors.offline }]} />
+            <Text style={[card.badgeText, { color: isOnline ? Colors.online : Colors.offline }]}>
+              {isOnline ? 'ONLINE' : 'OFFLINE'}
+            </Text>
+          </View>
+        </View>
+
+        {/* user + os */}
+        {(user || os) ? (
+          <Text style={card.sub}>{[user, os].filter(Boolean).join('  ·  ')}</Text>
+        ) : null}
+
+        {/* hardware line */}
+        {(cpu || ram || ip) ? (
+          <Text style={card.meta} numberOfLines={1}>
+            {[cpu, ram, ip].filter(Boolean).join('  ·  ')}
+          </Text>
+        ) : null}
+      </View>
+
+      <Text style={card.arrow}>›</Text>
+    </TouchableOpacity>
+  );
+}
+
+const card = StyleSheet.create({
+  wrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.bgCard,
+    borderWidth: 1,
+    borderColor: Colors.violetBorder,
+    borderRadius: Radius.md,
+    marginBottom: 10,
+    overflow: 'hidden',
+  },
+  accent: { width: 3, alignSelf: 'stretch' },
+  body:   { flex: 1, paddingVertical: 14, paddingHorizontal: 14 },
+  topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 },
+  name:   { color: Colors.textPrimary, fontSize: 17, fontFamily: Fonts.display, letterSpacing: 1, flex: 1, marginRight: 8 },
+  badge:  { flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1, borderRadius: Radius.pill, paddingHorizontal: 8, paddingVertical: 3 },
+  dot:    { width: 5, height: 5, borderRadius: 3 },
+  badgeText: { fontSize: 8, fontFamily: Fonts.ui, letterSpacing: 1.5 },
+  sub:    { color: Colors.textSecondary, fontSize: 11, fontFamily: Fonts.body, letterSpacing: 0.5, marginBottom: 3 },
+  meta:   { color: Colors.textMuted, fontSize: 10, fontFamily: Fonts.mono, letterSpacing: 0.3 },
+  arrow:  { color: Colors.violetDim, fontSize: 22, paddingRight: 14, fontFamily: Fonts.body },
+});
+
+export default function DevicesScreen({ navigation }: any) {
+  const [devices, setDevices]   = useState<any[]>([]);
+  const [loading, setLoading]   = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  useEffect(() => { fetchDevices(); }, []);
+
+  const fetchDevices = async (isRefresh = false) => {
+    try {
+      isRefresh ? setRefreshing(true) : setLoading(true);
+      const response = await api.get('/api/v1/devices');
+      setDevices(response.data.devices || response.data || []);
+    } catch (e) {
+      Alert.alert('Connection Error', 'Could not reach backend. Check your network.');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
 
   const handleSignOut = () => {
-    Alert.alert('SIGN OUT', 'Terminate current session?', [
-      {text: 'CANCEL', style: 'cancel'},
+    Alert.alert('Sign Out', 'End this session?', [
+      { text: 'Cancel', style: 'cancel' },
       {
-        text: 'CONFIRM',
-        style: 'destructive',
+        text: 'Sign Out', style: 'destructive',
         onPress: async () => {
-          try {
-            await GoogleSignin.signOut();
-            await logoutUser();
-            navigation.replace('Login');
-          } catch {
-            Alert.alert('ERROR', 'Could not sign out. Try again.');
-          }
+          await logoutUser();
+          navigation.replace('Login');
         },
       },
     ]);
   };
 
   return (
-    <View style={styles.container}>
-      <ScanlineOverlay />
-      <CornerBrackets />
+    <View style={s.container}>
+      <StatusBar barStyle="light-content" backgroundColor={Colors.bg} />
+      <GridLines />
 
-      {/* Header */}
-      <View style={styles.header}>
+      <View style={s.header}>
         <View>
-          <Text style={styles.title}>NEUROSYNC</Text>
-          <Text style={styles.subtitle}>DEVICE NETWORK</Text>
+          <Text style={s.brand}>NEUROSYNC</Text>
+          <Text style={s.brandSub}>Remote Control Network</Text>
         </View>
-        <TouchableOpacity style={styles.signOutBtn} onPress={handleSignOut}>
-          <Text style={styles.signOutText}>⏻ SIGN OUT</Text>
+        <TouchableOpacity style={s.signOutBtn} onPress={handleSignOut}>
+          <Text style={s.signOutText}>Sign Out</Text>
         </TouchableOpacity>
       </View>
 
-      <HudDivider />
-
-      <Text style={styles.sectionLabel}>CONNECTED DEVICES</Text>
+      <View style={s.sectionRow}>
+        <Text style={s.sectionLabel}>YOUR DEVICES</Text>
+        <TouchableOpacity onPress={() => fetchDevices(true)}>
+          <Text style={s.refresh}>↻ REFRESH</Text>
+        </TouchableOpacity>
+      </View>
 
       {loading ? (
-        <ActivityIndicator color={Colors.cyan} style={{marginTop: 40}} />
+        <ActivityIndicator color={Colors.violet} style={{ marginTop: 60 }} />
       ) : devices.length === 0 ? (
-        <Text style={styles.emptyText}>{'// NO DEVICES FOUND'}</Text>
+        <View style={s.empty}>
+          <Text style={s.emptyIcon}>◈</Text>
+          <Text style={s.emptyTitle}>No devices found</Text>
+          <Text style={s.emptyHint}>Start the desktop agent on your PC to connect.</Text>
+        </View>
       ) : (
         <FlatList
           data={devices}
-          keyExtractor={(item: any) => item.id || item.device_id || item.name}
-          renderItem={({item}: any) => (
-            <TouchableOpacity
-              style={styles.deviceCard}
-              onPress={() => navigation.navigate('DeviceDetails', {device: item})}
-              activeOpacity={0.8}>
-              <View style={styles.cardAccent} />
-              <View style={styles.statusIndicator}>
-                <View style={[styles.statusDot, {backgroundColor: item.status === 'online' ? Colors.cyan : '#ff4444'}]} />
-                <View style={styles.statusRing} />
-              </View>
-              <View style={styles.deviceInfo}>
-                <Text style={styles.deviceName}>{item.device_id || item.name || item.device_name || item.hostname}</Text>
-                <Text style={styles.deviceMeta}>{item.os || 'WINDOWS'}  ·  {item.status?.toUpperCase() || 'ONLINE'}</Text>
-              </View>
-              <Text style={styles.chevron}>›</Text>
-            </TouchableOpacity>
+          keyExtractor={(item: any) => item.device_id || item.id || Math.random().toString()}
+          renderItem={({ item }) => (
+            <DeviceCard
+              item={item}
+              onPress={() => navigation.navigate('DeviceDetails', { device: item })}
+            />
           )}
+          contentContainerStyle={{ paddingBottom: 40 }}
+          onRefresh={() => fetchDevices(true)}
+          refreshing={refreshing}
+          showsVerticalScrollIndicator={false}
         />
       )}
-
-      <Text style={styles.hint}>{'// TAP DEVICE TO ACCESS CONTROL PANEL'}</Text>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {flex: 1, backgroundColor: Colors.bg, padding: Spacing.lg, paddingTop: 56},
-  header: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: Spacing.md},
-  title: {color: Colors.cyan, fontSize: 24, letterSpacing: 6, fontFamily: Fonts.ui},
-  subtitle: {color: Colors.textMuted, fontSize: 9, letterSpacing: 3, fontFamily: Fonts.uiReg, marginTop: 2},
-  signOutBtn: {borderWidth: 0.5, borderColor: Colors.redBorder, borderRadius: Radius.sm, paddingHorizontal: 12, paddingVertical: 7},
-  signOutText: {color: Colors.red, fontSize: 10, letterSpacing: 1.5, fontFamily: Fonts.uiReg},
-  sectionLabel: {color: Colors.textMuted, fontSize: 9, letterSpacing: 3, fontFamily: Fonts.uiReg, marginBottom: Spacing.md},
-  deviceCard: {flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.bgCard, borderWidth: 0.5, borderColor: Colors.cyanBorder, borderRadius: Radius.md, padding: Spacing.lg, overflow: 'hidden', marginBottom: 12},
-  cardAccent: {position: 'absolute', left: 0, top: 0, bottom: 0, width: 2, backgroundColor: Colors.cyan},
-  statusIndicator: {width: 32, height: 32, justifyContent: 'center', alignItems: 'center', marginRight: Spacing.md},
-  statusDot: {width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.cyan, position: 'absolute'},
-  statusRing: {width: 20, height: 20, borderRadius: 10, borderWidth: 0.5, borderColor: Colors.cyanBorder},
-  deviceInfo: {flex: 1},
-  deviceName: {color: Colors.textPrimary, fontSize: 16, letterSpacing: 2, fontFamily: Fonts.ui},
-  deviceMeta: {color: Colors.textMuted, fontSize: 9, letterSpacing: 2, fontFamily: Fonts.uiReg, marginTop: 3},
-  chevron: {color: Colors.cyanDim, fontSize: 20, fontFamily: Fonts.uiReg},
-  hint: {color: Colors.textMuted, fontSize: 9, letterSpacing: 1, fontFamily: Fonts.hud, marginTop: Spacing.xl, textAlign: 'center'},
-  emptyText: {color: Colors.textMuted, fontSize: 10, letterSpacing: 2, fontFamily: Fonts.hud, marginTop: 40, textAlign: 'center'},
+const s = StyleSheet.create({
+  container:  { flex: 1, backgroundColor: Colors.bg, padding: Spacing.lg, paddingTop: 56 },
+  header:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: Spacing.xl },
+  brand:      { color: Colors.violet, fontSize: 26, fontFamily: Fonts.display, letterSpacing: 5 },
+  brandSub:   { color: Colors.textMuted, fontSize: 10, fontFamily: Fonts.body, letterSpacing: 1.5, marginTop: 2 },
+  signOutBtn: { borderWidth: 1, borderColor: Colors.magentaBorder, borderRadius: Radius.sm, paddingHorizontal: 14, paddingVertical: 8 },
+  signOutText:{ color: Colors.magenta, fontSize: 11, fontFamily: Fonts.ui, letterSpacing: 1 },
+  sectionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.md },
+  sectionLabel:{ color: Colors.textMuted, fontSize: 9, fontFamily: Fonts.ui, letterSpacing: 3 },
+  refresh:    { color: Colors.violetDim, fontSize: 9, fontFamily: Fonts.mono, letterSpacing: 1 },
+  empty:      { flex: 1, justifyContent: 'center', alignItems: 'center', paddingBottom: 80 },
+  emptyIcon:  { color: Colors.violetDim, fontSize: 40, marginBottom: 16 },
+  emptyTitle: { color: Colors.textSecondary, fontSize: 16, fontFamily: Fonts.display, letterSpacing: 1, marginBottom: 8 },
+  emptyHint:  { color: Colors.textMuted, fontSize: 12, fontFamily: Fonts.body, textAlign: 'center', lineHeight: 18 },
 });

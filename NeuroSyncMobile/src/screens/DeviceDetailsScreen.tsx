@@ -1,135 +1,160 @@
-// src/screens/DeviceDetailsScreen.tsx — JARVIS HUD theme
 
 import React from 'react';
-import {View, Text, StyleSheet, ScrollView} from 'react-native';
-import {Colors, Fonts, Spacing, Radius} from '../theme';
 import {
-  CornerBrackets,
-  ScanlineOverlay,
-  HudTopBar,
-  HudButton,
-  StatBarRow,
-  HudDivider,
-} from '../components/HudComponents';
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar,
+} from 'react-native';
+import { Colors, Fonts, Spacing, Radius } from '../theme';
 
-function InfoRow({label, value}: {label: string; value: string}) {
+function InfoRow({ label, value }: { label: string; value: string }) {
+  if (!value || value === '—') return null;
   return (
-    <View style={styles.infoRow}>
-      <Text style={styles.infoLabel}>{label}</Text>
-      <Text style={styles.infoValue}>{value}</Text>
+    <View style={s.infoRow}>
+      <Text style={s.infoLabel}>{label}</Text>
+      <Text style={s.infoValue} numberOfLines={1}>{value}</Text>
     </View>
   );
 }
 
-export default function DeviceDetailsScreen({navigation, route}: any) {
+function ControlBtn({ icon, label, color = Colors.violet, onPress }: any) {
+  return (
+    <TouchableOpacity style={[s.ctrlBtn, { borderColor: `${color}40` }]} onPress={onPress} activeOpacity={0.75}>
+      <View style={[s.ctrlAccent, { backgroundColor: color }]} />
+      <Text style={s.ctrlIcon}>{icon}</Text>
+      <Text style={[s.ctrlLabel, { color: Colors.textPrimary }]}>{label}</Text>
+      <Text style={[s.ctrlArrow, { color: `${color}88` }]}>›</Text>
+    </TouchableOpacity>
+  );
+}
+
+export default function DeviceDetailsScreen({ navigation, route }: any) {
   const device = route.params?.device || {};
-  const deviceName = device.device_id || device.name || device.device_name || device.hostname || 'UNKNOWN';
-  const deviceOs = device.os || 'WINDOWS 11';
-  const deviceIp = device.ip_address || device.ip || '—';
-  const lastSeen = device.last_seen || 'Just now';
+
+  // Map ALL possible field names from backend
+  const hostname   = device.hostname   || device.device_id || 'Unknown Device';
+  const username   = device.username   || '';
+  const os         = device.os         || 'Windows';
+  const osVersion  = device.os_version || '';
+  const ip         = device.ip_address || device.ip || '—';
+  const mac        = device.mac_address || '—';
+  const cpu        = device.cpu        || '—';
+  const ram        = device.ram_gb     ? `${device.ram_gb} GB` : '—';
+  const lastSeen   = device.last_seen  || 'Just now';
+  const isOnline   = device.status     === 'online';
 
   return (
-    <View style={styles.container}>
-      <ScanlineOverlay />
-      <CornerBrackets />
+    <View style={s.container}>
+      <StatusBar barStyle="light-content" backgroundColor={Colors.bg} />
 
-      <HudTopBar
-        title="DEVICE DETAILS"
-        onBack={() => navigation.goBack()}
-        rightLabel="ONLINE"
-        pulse
-      />
+      {/* Top bar */}
+      <View style={s.topBar}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
+          <Text style={s.backText}>← Back</Text>
+        </TouchableOpacity>
+        <View style={[s.statusBadge, { borderColor: isOnline ? Colors.online : Colors.offline }]}>
+          <View style={[s.statusDot, { backgroundColor: isOnline ? Colors.online : Colors.offline }]} />
+          <Text style={[s.statusText, { color: isOnline ? Colors.online : Colors.offline }]}>
+            {isOnline ? 'Online' : 'Offline'}
+          </Text>
+        </View>
+      </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
-        {/* Device header */}
-        <View style={styles.deviceHeader}>
-          <View>
-            <Text style={styles.deviceName}>{deviceName}</Text>
-            <Text style={styles.deviceOs}>{deviceOs}  ·  64-BIT</Text>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
+
+        {/* Device hero */}
+        <View style={s.hero}>
+          <View style={s.heroIcon}>
+            <Text style={s.heroIconText}>⬡</Text>
           </View>
-          <View style={styles.onlineBadge}>
-            <View style={styles.badgeDot} />
-            <Text style={styles.badgeText}>LIVE</Text>
+          <View style={s.heroText}>
+            <Text style={s.deviceName}>{hostname}</Text>
+            {username ? <Text style={s.deviceUser}>@{username}</Text> : null}
+            <Text style={s.deviceOs}>{[os, osVersion].filter(Boolean).join(' ')}</Text>
           </View>
         </View>
 
-        {/* Quick stats */}
-        <View style={styles.quickStats}>
-          <StatBarRow label="CPU" value={34} />
-          <StatBarRow label="RAM" value={61} color={Colors.blue} />
-          <StatBarRow label="DISK" value={47} color={Colors.amber} />
+        {/* Hardware strip */}
+        <View style={s.hwStrip}>
+          <View style={s.hwItem}>
+            <Text style={s.hwLabel}>CPU</Text>
+            <Text style={s.hwValue} numberOfLines={2}>{cpu}</Text>
+          </View>
+          <View style={s.hwDivider} />
+          <View style={s.hwItem}>
+            <Text style={s.hwLabel}>RAM</Text>
+            <Text style={s.hwValue}>{ram}</Text>
+          </View>
+          <View style={s.hwDivider} />
+          <View style={s.hwItem}>
+            <Text style={s.hwLabel}>IP</Text>
+            <Text style={s.hwValue}>{ip}</Text>
+          </View>
         </View>
 
-        <HudDivider />
-
-        {/* Info card */}
-        <Text style={styles.sectionLabel}>DEVICE INFO</Text>
-        <View style={styles.infoCard}>
-          <InfoRow label="HOSTNAME" value={deviceName} />
-          <InfoRow label="OS" value={deviceOs} />
-          <InfoRow label="IP ADDRESS" value={deviceIp} />
-          <InfoRow label="LAST SEEN" value={lastSeen} />
+        {/* Info table */}
+        <Text style={s.sectionLabel}>DEVICE INFO</Text>
+        <View style={s.infoCard}>
+          <InfoRow label="Hostname"    value={hostname} />
+          <InfoRow label="Username"    value={username} />
+          <InfoRow label="OS"          value={[os, osVersion].filter(Boolean).join(' ')} />
+          <InfoRow label="IP Address"  value={ip} />
+          <InfoRow label="MAC Address" value={mac} />
+          <InfoRow label="Last Seen"   value={lastSeen} />
         </View>
 
-        <HudDivider />
-
-        {/* Control modules */}
-        <Text style={styles.sectionLabel}>CONTROL MODULES</Text>
-
-        <View style={styles.btnList}>
-          <HudButton
-            icon="🖥"
-            label="REMOTE DASHBOARD"
-            onPress={() => navigation.navigate('RemoteDashboard', {device})}
-          />
-          <HudButton
-            icon="🖱️"
-            label="MOUSE CONTROL"
-            onPress={() => navigation.navigate('MouseControl', {device})}
-          />
-          <HudButton
-            icon="⌨️"
-            label="KEYBOARD"
-            onPress={() => navigation.navigate('Keyboard', {device})}
-          />
-          <HudButton
-            icon="📊"
-            label="SYSTEM MONITOR"
-            color={Colors.blue}
-            onPress={() => navigation.navigate('SystemMonitor', {device})}
-          />
-          <HudButton
-            icon="📁"
-            label="FILE MANAGER"
-            color={Colors.amber}
-            onPress={() => navigation.navigate('FileManager', {device})}
-          />
-          <HudButton
-            icon="🤖"
-            label="AI ASSISTANT"
-            color={Colors.cyan}
-            onPress={() => navigation.navigate('AIAssistant', {device})}
-          />
+        {/* Controls */}
+        <Text style={s.sectionLabel}>CONTROLS</Text>
+        <View style={s.ctrlList}>
+          <ControlBtn icon="🤖" label="AI Assistant"    color={Colors.violet}  onPress={() => navigation.navigate('AIAssistant', { device })} />
+          <ControlBtn icon="📊" label="System Monitor"  color={Colors.online}  onPress={() => navigation.navigate('SystemMonitor', { device })} />
+          <ControlBtn icon="⌨️" label="Keyboard"        color={Colors.violet}  onPress={() => navigation.navigate('Keyboard', { device })} />
+          <ControlBtn icon="🖱️" label="Mouse Control"   color={Colors.violet}  onPress={() => navigation.navigate('MouseControl', { device })} />
+          <ControlBtn icon="📁" label="File Manager"    color={Colors.warn}    onPress={() => navigation.navigate('FileManager', { device })} />
+          <ControlBtn icon="🖥" label="Remote Desktop"  color={Colors.magenta} onPress={() => navigation.navigate('RemoteDashboard', { device })} />
         </View>
       </ScrollView>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {flex: 1, backgroundColor: Colors.bg, padding: Spacing.lg, paddingTop: 56},
-  scroll: {paddingBottom: 40},
-  deviceHeader: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: Spacing.md},
-  deviceName: {color: Colors.cyan, fontSize: 26, letterSpacing: 4, fontFamily: Fonts.ui},
-  deviceOs: {color: Colors.textMuted, fontSize: 9, letterSpacing: 2.5, fontFamily: Fonts.uiReg, marginTop: 4},
-  onlineBadge: {flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: `${Colors.cyan}15`, borderWidth: 0.5, borderColor: Colors.cyanBorder, borderRadius: Radius.pill, paddingHorizontal: 10, paddingVertical: 5},
-  badgeDot: {width: 5, height: 5, borderRadius: 3, backgroundColor: Colors.cyan},
-  badgeText: {color: Colors.cyan, fontSize: 9, letterSpacing: 2, fontFamily: Fonts.ui},
-  quickStats: {marginBottom: Spacing.sm},
-  sectionLabel: {color: Colors.textMuted, fontSize: 9, letterSpacing: 3, fontFamily: Fonts.uiReg, marginBottom: Spacing.sm},
-  infoCard: {backgroundColor: Colors.bgCard, borderWidth: 0.5, borderColor: Colors.cyanBorder, borderRadius: Radius.md, overflow: 'hidden', marginBottom: Spacing.sm},
-  infoRow: {flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 11, paddingHorizontal: Spacing.md, borderBottomWidth: 0.5, borderBottomColor: Colors.divider},
-  infoLabel: {color: Colors.textSecondary, fontSize: 10, letterSpacing: 2, fontFamily: Fonts.uiReg},
-  infoValue: {color: Colors.textPrimary, fontSize: 12, fontFamily: Fonts.hud, letterSpacing: 0.5},
-  btnList: {gap: Spacing.sm},
+const s = StyleSheet.create({
+  container: { flex: 1, backgroundColor: Colors.bg },
+  topBar:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: Spacing.lg, paddingTop: 56, paddingBottom: Spacing.md, borderBottomWidth: 1, borderBottomColor: Colors.divider },
+  backBtn:   { paddingVertical: 6 },
+  backText:  { color: Colors.violetDim, fontSize: 13, fontFamily: Fonts.body, letterSpacing: 0.5 },
+  statusBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1, borderRadius: Radius.pill, paddingHorizontal: 10, paddingVertical: 4 },
+  statusDot:   { width: 6, height: 6, borderRadius: 3 },
+  statusText:  { fontSize: 9, fontFamily: Fonts.ui, letterSpacing: 1.5 },
+
+  scroll: { padding: Spacing.lg, paddingBottom: 50 },
+
+  // Hero
+  hero:       { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, marginBottom: Spacing.xl },
+  heroIcon:   { width: 56, height: 56, borderRadius: 14, backgroundColor: Colors.violetFaint, borderWidth: 1, borderColor: Colors.violetBorder, justifyContent: 'center', alignItems: 'center' },
+  heroIconText:{ color: Colors.violet, fontSize: 28 },
+  heroText:   { flex: 1 },
+  deviceName: { color: Colors.textPrimary, fontSize: 24, fontFamily: Fonts.display, letterSpacing: 1, marginBottom: 2 },
+  deviceUser: { color: Colors.violet, fontSize: 12, fontFamily: Fonts.mono, marginBottom: 2 },
+  deviceOs:   { color: Colors.textMuted, fontSize: 11, fontFamily: Fonts.body, letterSpacing: 0.5 },
+
+  // Hardware strip
+  hwStrip:   { flexDirection: 'row', backgroundColor: Colors.bgCard, borderWidth: 1, borderColor: Colors.violetBorder, borderRadius: Radius.md, marginBottom: Spacing.xl, overflow: 'hidden' },
+  hwItem:    { flex: 1, padding: 14, alignItems: 'center' },
+  hwDivider: { width: 1, backgroundColor: Colors.divider, marginVertical: 10 },
+  hwLabel:   { color: Colors.textMuted, fontSize: 8, fontFamily: Fonts.ui, letterSpacing: 2, marginBottom: 6 },
+  hwValue:   { color: Colors.textPrimary, fontSize: 11, fontFamily: Fonts.mono, textAlign: 'center' },
+
+  // Info table
+  sectionLabel: { color: Colors.textMuted, fontSize: 9, fontFamily: Fonts.ui, letterSpacing: 3, marginBottom: Spacing.sm, marginTop: Spacing.sm },
+  infoCard: { backgroundColor: Colors.bgCard, borderWidth: 1, borderColor: Colors.violetBorder, borderRadius: Radius.md, overflow: 'hidden', marginBottom: Spacing.xl },
+  infoRow:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12, paddingHorizontal: Spacing.md, borderBottomWidth: 1, borderBottomColor: Colors.grid },
+  infoLabel:{ color: Colors.textMuted, fontSize: 10, fontFamily: Fonts.body, letterSpacing: 1 },
+  infoValue:{ color: Colors.textPrimary, fontSize: 12, fontFamily: Fonts.mono, maxWidth: '60%', textAlign: 'right' },
+
+  // Controls
+  ctrlList: { gap: 8 },
+  ctrlBtn:  { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, backgroundColor: Colors.bgCard, borderWidth: 1, borderRadius: Radius.md, paddingVertical: 14, paddingHorizontal: Spacing.md, overflow: 'hidden' },
+  ctrlAccent: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 2 },
+  ctrlIcon: { fontSize: 18, width: 24, textAlign: 'center' },
+  ctrlLabel:{ flex: 1, fontSize: 13, fontFamily: Fonts.ui, letterSpacing: 1 },
+  ctrlArrow:{ fontSize: 18 },
 });

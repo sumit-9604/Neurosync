@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from app.db.database import get_db
 from app.models.user import User
 from app.core.security import decode_access_token
-from app.core.dependencies import get_current_user
+
 
 async def get_current_user(
     authorization: str = Header(...),
