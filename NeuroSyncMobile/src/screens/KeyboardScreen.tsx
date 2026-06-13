@@ -17,7 +17,7 @@ const SPECIAL_KEYS = [
   { label: '⌫', value: 'backspace', color: Colors.red },
   { label: 'TAB', value: 'tab' },
   { label: 'ENTER', value: 'enter', color: Colors.cyan },
-  { label: 'ESC', value: 'escape', color: Colors.red },
+  { label: 'ESC', value: 'esc', color: Colors.red },
   { label: '▲', value: 'up' },
   { label: '▼', value: 'down' },
   { label: '◀', value: 'left' },
@@ -55,16 +55,16 @@ export default function KeyboardScreen({ navigation, route }: any) {
 };
 
   const sendText = async () => {
-    if (!text.trim()) return;
-    try {
-      setStatus(`TYPING: "${text}"`);
-      await sendCommand(deviceId, `type:${text}`);
-      setText('');
-      setTimeout(() => setStatus('READY'), 1000);
-    } catch {
-      setStatus('ERR: DEVICE UNREACHABLE');
-    }
-  };
+  if (!text.trim()) return;
+  try {
+    setStatus(`TYPING: "${text}"`);
+    await sendCommand(deviceId, 'type_text', { text });
+    setText('');
+    setTimeout(() => setStatus('READY'), 1000);
+  } catch {
+    setStatus('ERR: DEVICE UNREACHABLE');
+  }
+};
 
   return (
     <View style={styles.container}>
