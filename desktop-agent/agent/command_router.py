@@ -9,18 +9,14 @@ from automation.mouse_controller import MouseController
 from automation.keyboard_controller import KeyboardController
 
 logger = logging.getLogger(__name__)
-@register("wait")
-def wait(payload):
-    seconds = payload.get("seconds", 1)
-    time.sleep(seconds)
-    return {"waited": seconds}
 
-# ── Action registry ────────────────────────────────────────────────────────────
-# Maps action string → (callable, required_fields, optional_fields_with_defaults)
+
+
 
 _REGISTRY: dict[str, dict] = {
 
     # ── App launcher ──
+    "wait": {"fn": lambda c: time.sleep(c.get("seconds", 1)) or {"status": "success", "waited": c.get("seconds", 1)}},
     "open_chrome":       {"fn": lambda c: AppLauncher.open_chrome(c.get("url", ""))},
     "open_firefox":      {"fn": lambda c: AppLauncher.open_firefox(c.get("url", ""))},
     "open_edge":         {"fn": lambda c: AppLauncher.open_edge(c.get("url", ""))},
