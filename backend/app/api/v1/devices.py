@@ -4,6 +4,8 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from app.db.database import get_db
 from app.models.device import Device
+from app.models.user import User
+from app.core.dependencies import get_current_user
 
 logger = logging.getLogger("devices")
 router = APIRouter()
@@ -16,8 +18,12 @@ def set_manager(manager):
 
 
 @router.get("/devices")
-async def get_devices(db: Session = Depends(get_db)):
-    devices = db.query(Device).all()
+async def get_devices(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)   
+):
+
+    devices = db.query(Device).filter(Device.user_id == current_user.user_id).all()
     result = []
     for d in devices:
         is_online = _manager and _manager.get_device(d.device_id) is not None
@@ -38,10 +44,17 @@ async def get_devices(db: Session = Depends(get_db)):
 
 
 @router.get("/devices/{device_id}")
-async def get_device(device_id: str, db: Session = Depends(get_db)):
-    d = db.query(Device).filter(Device.device_id == device_id).first()
+async def get_device(
+    device_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)   # 🔒 JWT
+):
+    d = db.query(Device).filter(
+        Device.device_id == device_id,
+        Device.user_id == current_user.user_id        # ownership check
+    ).first()
     if not d:
-        return JSONResponse(status_code=404, content={"error": f"Device {device_id} not found"})
+        return JSONResponse(status_code=404, content={"error": "Device not found"})
     is_online = _manager and _manager.get_device(device_id) is not None
     return {
         "device_id":   d.device_id,

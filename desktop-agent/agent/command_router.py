@@ -1,30 +1,19 @@
-"""
-command_router.py
-
-Central dispatcher for the Desktop Agent.
-Receives a command dict from the WebSocket / AI layer and routes it to
-the correct controller method, with validation, logging, and structured
-error handling.
-
-Command format (all fields):
-{
-    "action": str,          # required — what to do
-    "request_id": str,      # optional — echoed back for correlation
-    **kwargs                # action-specific parameters
-}
-"""
-
 import logging
 import time
 import traceback
 from typing import Any
+import time
 
 from automation.app_launcher import AppLauncher
 from automation.mouse_controller import MouseController
 from automation.keyboard_controller import KeyboardController
 
 logger = logging.getLogger(__name__)
-
+@register("wait")
+def wait(payload):
+    seconds = payload.get("seconds", 1)
+    time.sleep(seconds)
+    return {"waited": seconds}
 
 # ── Action registry ────────────────────────────────────────────────────────────
 # Maps action string → (callable, required_fields, optional_fields_with_defaults)
@@ -195,3 +184,4 @@ def action_info(action: str) -> dict:
         "action": action,
         "required_fields": entry.get("required", []),
     }
+    

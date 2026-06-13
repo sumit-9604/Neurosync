@@ -8,7 +8,8 @@ class Device(Base):
 
     device_id   = Column(String, primary_key=True, index=True)
     hostname    = Column(String, nullable=False)
-    username    = Column(String, nullable=True)   # Windows login user
+    user_id     = Column(String, nullable=True, index=True)
+    username    = Column(String, nullable=True) 
     os          = Column(String, nullable=True)
     os_version  = Column(String, nullable=True)
     ip_address  = Column(String, nullable=True)
