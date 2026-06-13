@@ -3,7 +3,7 @@ import json
 import logging
 import ssl
 from typing import Optional
-
+import os
 import websockets
 from websockets.exceptions import ConnectionClosed, WebSocketException
 
@@ -124,6 +124,7 @@ class WebSocketClient:
         info = get_device_info()
         info["type"] = "agent_register"
         info["device_id"] = self.device_id
+        info["token"] = os.getenv("NEUROSYNC_TOKEN", "")
         await self._websocket.send(json.dumps(info))
         logger.info(f"Device registered: {self.device_id}")
 
