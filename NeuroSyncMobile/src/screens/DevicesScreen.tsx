@@ -1,18 +1,18 @@
 // src/screens/DevicesScreen.tsx — Neural Dark theme
 
-import React, { useEffect, useState } from 'react';
+import React, {useEffect, useState} from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet,
   Alert, FlatList, ActivityIndicator, StatusBar,
 } from 'react-native';
-import { Colors, Fonts, Spacing, Radius } from '../theme';
-import { api } from '../services/apiClient';
-import { logoutUser } from '../services/authService';
+import {Colors, Fonts, Spacing, Radius} from '../theme';
+import {api} from '../services/apiClient';
+import {logoutUser} from '../services/authService';
 
 function GridLines() {
   return (
     <View style={grid.wrap} pointerEvents="none">
-      {Array.from({ length: 8 }).map((_, i) => (
+      {Array.from({length: 8}).map((_, i) => (
         <View key={i} style={grid.row} />
       ))}
     </View>
@@ -20,42 +20,38 @@ function GridLines() {
 }
 
 const grid = StyleSheet.create({
-  wrap: { ...StyleSheet.absoluteFillObject, flexDirection: 'column', zIndex: 0 },
-  row:  { flex: 1, borderBottomWidth: 0.5, borderBottomColor: Colors.grid },
+  wrap: {...StyleSheet.absoluteFill, flexDirection: 'column', zIndex: 0},
+  row: {flex: 1, borderBottomWidth: 0.5, borderBottomColor: Colors.grid},
 });
 
-function DeviceCard({ item, onPress }: { item: any; onPress: () => void }) {
+function DeviceCard({item, onPress}: {item: any; onPress: () => void}) {
   const isOnline = item.status === 'online';
-  const name     = item.hostname  || item.device_id || 'UNKNOWN';
-  const user     = item.username  ? `@${item.username}` : '';
-  const os       = item.os       || 'Windows';
-  const cpu      = item.cpu      || '';
-  const ram      = item.ram_gb   ? `${item.ram_gb} GB RAM` : '';
-  const ip       = item.ip_address || '';
+  const name = item.hostname || item.device_id || 'UNKNOWN';
+  const user = item.username ? `@${item.username}` : '';
+  const os = item.os || 'Windows';
+  const cpu = item.cpu || '';
+  const ram = item.ram_gb ? `${item.ram_gb} GB RAM` : '';
+  const ip = item.ip_address || '';
 
   return (
     <TouchableOpacity style={card.wrap} onPress={onPress} activeOpacity={0.75}>
-      {/* left accent bar */}
-      <View style={[card.accent, { backgroundColor: isOnline ? Colors.online : Colors.offline }]} />
+      <View style={[card.accent, {backgroundColor: isOnline ? Colors.online : Colors.offline}]} />
 
       <View style={card.body}>
-        {/* top row: name + status badge */}
         <View style={card.topRow}>
           <Text style={card.name} numberOfLines={1}>{name}</Text>
-          <View style={[card.badge, { borderColor: isOnline ? Colors.online : Colors.offline }]}>
-            <View style={[card.dot, { backgroundColor: isOnline ? Colors.online : Colors.offline }]} />
-            <Text style={[card.badgeText, { color: isOnline ? Colors.online : Colors.offline }]}>
+          <View style={[card.badge, {borderColor: isOnline ? Colors.online : Colors.offline}]}>
+            <View style={[card.dot, {backgroundColor: isOnline ? Colors.online : Colors.offline}]} />
+            <Text style={[card.badgeText, {color: isOnline ? Colors.online : Colors.offline}]}>
               {isOnline ? 'ONLINE' : 'OFFLINE'}
             </Text>
           </View>
         </View>
 
-        {/* user + os */}
         {(user || os) ? (
           <Text style={card.sub}>{[user, os].filter(Boolean).join('  ·  ')}</Text>
         ) : null}
 
-        {/* hardware line */}
         {(cpu || ram || ip) ? (
           <Text style={card.meta} numberOfLines={1}>
             {[cpu, ram, ip].filter(Boolean).join('  ·  ')}
@@ -79,43 +75,53 @@ const card = StyleSheet.create({
     marginBottom: 10,
     overflow: 'hidden',
   },
-  accent: { width: 3, alignSelf: 'stretch' },
-  body:   { flex: 1, paddingVertical: 14, paddingHorizontal: 14 },
-  topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 },
-  name:   { color: Colors.textPrimary, fontSize: 17, fontFamily: Fonts.display, letterSpacing: 1, flex: 1, marginRight: 8 },
-  badge:  { flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1, borderRadius: Radius.pill, paddingHorizontal: 8, paddingVertical: 3 },
-  dot:    { width: 5, height: 5, borderRadius: 3 },
-  badgeText: { fontSize: 8, fontFamily: Fonts.ui, letterSpacing: 1.5 },
-  sub:    { color: Colors.textSecondary, fontSize: 11, fontFamily: Fonts.body, letterSpacing: 0.5, marginBottom: 3 },
-  meta:   { color: Colors.textMuted, fontSize: 10, fontFamily: Fonts.mono, letterSpacing: 0.3 },
-  arrow:  { color: Colors.violetDim, fontSize: 22, paddingRight: 14, fontFamily: Fonts.body },
+  accent: {width: 3, alignSelf: 'stretch'},
+  body: {flex: 1, paddingVertical: 14, paddingHorizontal: 14},
+  topRow: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5},
+  name: {color: Colors.textPrimary, fontSize: 17, fontFamily: Fonts.display, letterSpacing: 1, flex: 1, marginRight: 8},
+  badge: {flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1, borderRadius: Radius.pill, paddingHorizontal: 8, paddingVertical: 3},
+  dot: {width: 5, height: 5, borderRadius: 3},
+  badgeText: {fontSize: 8, fontFamily: Fonts.ui, letterSpacing: 1.5},
+  sub: {color: Colors.textSecondary, fontSize: 11, fontFamily: Fonts.body, letterSpacing: 0.5, marginBottom: 3},
+  meta: {color: Colors.textMuted, fontSize: 10, fontFamily: Fonts.mono, letterSpacing: 0.3},
+  arrow: {color: Colors.violetDim, fontSize: 22, paddingRight: 14, fontFamily: Fonts.body},
 });
 
-export default function DevicesScreen({ navigation }: any) {
-  const [devices, setDevices]   = useState<any[]>([]);
-  const [loading, setLoading]   = useState(true);
+export default function DevicesScreen({navigation}: any) {
+  const [devices, setDevices] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => { fetchDevices(); }, []);
+  useEffect(() => {
+    fetchDevices();
+  }, []);
 
-  const fetchDevices = async (isRefresh = false) => {
+  const fetchDevices = async () => {
     try {
-      isRefresh ? setRefreshing(true) : setLoading(true);
+      setLoading(true);
       const response = await api.get('/api/v1/devices');
-      setDevices(response.data.devices || response.data || []);
-    } catch (e) {
-      Alert.alert('Connection Error', 'Could not reach backend. Check your network.');
+      console.log('Devices response:', JSON.stringify(response.data));
+      setDevices(response.data.devices || response.data);
+    } catch (error) {
+      console.log('Devices error:', error);
+      Alert.alert('ERROR', 'Could not fetch devices. Is the backend running?');
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   };
 
+  const handleRefresh = () => {
+    setRefreshing(true);
+    fetchDevices();
+  };
+
   const handleSignOut = () => {
     Alert.alert('Sign Out', 'End this session?', [
-      { text: 'Cancel', style: 'cancel' },
+      {text: 'Cancel', style: 'cancel'},
       {
-        text: 'Sign Out', style: 'destructive',
+        text: 'Sign Out',
+        style: 'destructive',
         onPress: async () => {
           await logoutUser();
           navigation.replace('Login');
@@ -141,13 +147,13 @@ export default function DevicesScreen({ navigation }: any) {
 
       <View style={s.sectionRow}>
         <Text style={s.sectionLabel}>YOUR DEVICES</Text>
-        <TouchableOpacity onPress={() => fetchDevices(true)}>
+        <TouchableOpacity onPress={handleRefresh}>
           <Text style={s.refresh}>↻ REFRESH</Text>
         </TouchableOpacity>
       </View>
 
       {loading ? (
-        <ActivityIndicator color={Colors.violet} style={{ marginTop: 60 }} />
+        <ActivityIndicator color={Colors.violet} style={s.loadingIndicator} />
       ) : devices.length === 0 ? (
         <View style={s.empty}>
           <Text style={s.emptyIcon}>◈</Text>
@@ -158,14 +164,14 @@ export default function DevicesScreen({ navigation }: any) {
         <FlatList
           data={devices}
           keyExtractor={(item: any) => item.device_id || item.id || Math.random().toString()}
-          renderItem={({ item }) => (
+          renderItem={({item}) => (
             <DeviceCard
               item={item}
-              onPress={() => navigation.navigate('DeviceDetails', { device: item })}
+              onPress={() => navigation.navigate('DeviceDetails', {device: item})}
             />
           )}
-          contentContainerStyle={{ paddingBottom: 40 }}
-          onRefresh={() => fetchDevices(true)}
+          contentContainerStyle={s.listContent}
+          onRefresh={handleRefresh}
           refreshing={refreshing}
           showsVerticalScrollIndicator={false}
         />
@@ -175,17 +181,19 @@ export default function DevicesScreen({ navigation }: any) {
 }
 
 const s = StyleSheet.create({
-  container:  { flex: 1, backgroundColor: Colors.bg, padding: Spacing.lg, paddingTop: 56 },
-  header:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: Spacing.xl },
-  brand:      { color: Colors.violet, fontSize: 26, fontFamily: Fonts.display, letterSpacing: 5 },
-  brandSub:   { color: Colors.textMuted, fontSize: 10, fontFamily: Fonts.body, letterSpacing: 1.5, marginTop: 2 },
-  signOutBtn: { borderWidth: 1, borderColor: Colors.magentaBorder, borderRadius: Radius.sm, paddingHorizontal: 14, paddingVertical: 8 },
-  signOutText:{ color: Colors.magenta, fontSize: 11, fontFamily: Fonts.ui, letterSpacing: 1 },
-  sectionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.md },
-  sectionLabel:{ color: Colors.textMuted, fontSize: 9, fontFamily: Fonts.ui, letterSpacing: 3 },
-  refresh:    { color: Colors.violetDim, fontSize: 9, fontFamily: Fonts.mono, letterSpacing: 1 },
-  empty:      { flex: 1, justifyContent: 'center', alignItems: 'center', paddingBottom: 80 },
-  emptyIcon:  { color: Colors.violetDim, fontSize: 40, marginBottom: 16 },
-  emptyTitle: { color: Colors.textSecondary, fontSize: 16, fontFamily: Fonts.display, letterSpacing: 1, marginBottom: 8 },
-  emptyHint:  { color: Colors.textMuted, fontSize: 12, fontFamily: Fonts.body, textAlign: 'center', lineHeight: 18 },
+  container: {flex: 1, backgroundColor: Colors.bg, padding: Spacing.lg, paddingTop: 56},
+  header: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: Spacing.xl},
+  brand: {color: Colors.violet, fontSize: 26, fontFamily: Fonts.display, letterSpacing: 5},
+  brandSub: {color: Colors.textMuted, fontSize: 10, fontFamily: Fonts.body, letterSpacing: 1.5, marginTop: 2},
+  signOutBtn: {borderWidth: 1, borderColor: Colors.magentaBorder, borderRadius: Radius.sm, paddingHorizontal: 14, paddingVertical: 8},
+  signOutText: {color: Colors.magenta, fontSize: 11, fontFamily: Fonts.ui, letterSpacing: 1},
+  sectionRow: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.md},
+  sectionLabel: {color: Colors.textMuted, fontSize: 9, fontFamily: Fonts.ui, letterSpacing: 3},
+  refresh: {color: Colors.violetDim, fontSize: 9, fontFamily: Fonts.mono, letterSpacing: 1},
+  empty: {flex: 1, justifyContent: 'center', alignItems: 'center', paddingBottom: 80},
+  emptyIcon: {color: Colors.violetDim, fontSize: 40, marginBottom: 16},
+  emptyTitle: {color: Colors.textSecondary, fontSize: 16, fontFamily: Fonts.display, letterSpacing: 1, marginBottom: 8},
+  emptyHint: {color: Colors.textMuted, fontSize: 12, fontFamily: Fonts.body, textAlign: 'center', lineHeight: 18},
+  loadingIndicator: {marginTop: 60},
+  listContent: {paddingBottom: 40},
 });
