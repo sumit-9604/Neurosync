@@ -7,7 +7,12 @@ from jose import JWTError, jwt
 from app.config import settings
 
 logger = logging.getLogger("security")
-
+def decode_access_token(token: str) -> dict | None:
+    try:
+        import jwt
+        return jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
+    except Exception:
+        return None
 
 def hash_password(password: str) -> str:
     salt = secrets.token_hex(16)

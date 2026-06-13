@@ -6,6 +6,7 @@ from app.api.websocket import command_handler, terminal_handler
 from app.db.database import init_db
 from app.config import settings
 import logging
+from app.api.v1 import devices, auth, ai 
 
 logging.basicConfig(
     level=logging.DEBUG if settings.DEBUG else logging.INFO,
@@ -14,7 +15,7 @@ logging.basicConfig(
 logger = logging.getLogger("backend")
 
 app = FastAPI(title=settings.APP_NAME, version=settings.VERSION)
-
+app.include_router(ai.router, prefix="/api/v1", tags=["ai"])
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,

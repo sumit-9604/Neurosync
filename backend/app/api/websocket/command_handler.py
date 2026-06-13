@@ -5,11 +5,12 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from app.api.websocket.connection_manager import ConnectionManager
 from app.models.device import Device
+from app.models.command import Command
 from app.db.database import SessionLocal
+from app.core.security import decode_access_token
 
 logger = logging.getLogger("command_handler")
 router = APIRouter()
-
 _manager: ConnectionManager = None
 
 def set_manager(manager: ConnectionManager):
@@ -23,26 +24,41 @@ class CommandRequest(BaseModel):
     payload: dict = {}
 
 
-def _save_device_to_db(device_id: str, hostname: str, os: str = None, os_version: str = None):
+def _save_device_to_db(info: dict, user_id: str = None):
     db = SessionLocal()
     try:
-        device = db.query(Device).filter(Device.device_id == device_id).first()
+        device = db.query(Device).filter(Device.device_id == info["device_id"]).first()
         if device:
-            device.status = "online"
-            device.hostname = hostname
+            device.hostname    = info.get("hostname", device.hostname)
+            device.username    = info.get("username")
+            device.os          = info.get("os")
+            device.os_version  = info.get("os_version")
+            device.ip_address  = info.get("ip_address")
+            device.mac_address = info.get("mac_address")
+            device.cpu         = info.get("cpu")
+            device.ram_gb      = info.get("ram_gb")
+            device.status      = "online"
+            if user_id:
+                device.user_id = user_id   # update owner if token provided
         else:
             device = Device(
-                device_id=device_id,
-                hostname=hostname,
-                os=os,
-                os_version=os_version,
-                status="online"
+                device_id   = info["device_id"],
+                user_id     = user_id,
+                hostname    = info.get("hostname", "unknown"),
+                username    = info.get("username"),
+                os          = info.get("os"),
+                os_version  = info.get("os_version"),
+                ip_address  = info.get("ip_address"),
+                mac_address = info.get("mac_address"),
+                cpu         = info.get("cpu"),
+                ram_gb      = info.get("ram_gb"),
+                status      = "online"
             )
             db.add(device)
         db.commit()
-        logger.info(f"Device saved to DB: {device_id}")
+        logger.info(f"Device saved: {info['device_id']} owner: {user_id}")
     except Exception as e:
-        logger.error(f"Failed to save device to DB: {e}")
+        logger.error(f"Failed to save device: {e}")
         db.rollback()
     finally:
         db.close()
@@ -55,9 +71,8 @@ def _set_device_offline(device_id: str):
         if device:
             device.status = "offline"
             db.commit()
-            logger.info(f"Device set offline in DB: {device_id}")
     except Exception as e:
-        logger.error(f"Failed to update device status: {e}")
+        logger.error(f"Failed to set offline: {e}")
         db.rollback()
     finally:
         db.close()
@@ -66,29 +81,44 @@ def _set_device_offline(device_id: str):
 async def handle_agent_connection(websocket: WebSocket, manager: ConnectionManager):
     global _manager
     _manager = manager
-
     device_id = None
+
     try:
         await websocket.accept()
         raw = await websocket.receive_text()
         data = json.loads(raw)
 
         device_id = data.get("device_id")
-        hostname = data.get("hostname", "unknown")
-        os = data.get("os")
-        os_version = data.get("os_version")
-
         if not device_id:
             await websocket.send_json({"error": "device_id required"})
             await websocket.close()
             return
 
-        # Register in memory
-        manager.connected_agents[device_id] = websocket
-        logger.info(f"Agent registered: {device_id} ({hostname})")
 
-        # ✅ Save to DB
-        _save_device_to_db(device_id, hostname, os, os_version)
+        token = data.get("token")
+        user_id = None
+        if token:
+            payload = decode_access_token(token)
+            if payload:
+                user_id = payload.get("sub")
+                logger.info(f"Device {device_id} authenticated as user {user_id}")
+            else:
+                logger.warning(f"Device {device_id} sent invalid token")
+
+        info = {
+            "device_id":   device_id,
+            "hostname":    data.get("hostname", "unknown"),
+            "username":    data.get("username"),
+            "os":          data.get("os"),
+            "os_version":  data.get("os_version"),
+            "ip_address":  data.get("ip_address"),
+            "mac_address": data.get("mac_address"),
+            "cpu":         data.get("cpu"),
+            "ram_gb":      data.get("ram_gb"),
+        }
+
+        manager.connected_agents[device_id] = websocket
+        _save_device_to_db(info, user_id)
 
         await websocket.send_json({
             "type": "registered",
@@ -103,27 +133,39 @@ async def handle_agent_connection(websocket: WebSocket, manager: ConnectionManag
 
             if msg_type == "heartbeat":
                 await websocket.send_json({"type": "heartbeat_ack"})
-                logger.debug(f"Heartbeat from {device_id}")
-
             elif msg_type == "command_result":
                 logger.info(f"Result from {device_id}: {msg}")
-
             else:
-                logger.warning(f"Unknown message type from {device_id}: {msg_type}")
+                logger.warning(f"Unknown message from {device_id}: {msg_type}")
 
     except WebSocketDisconnect:
         logger.info(f"Agent disconnected: {device_id}")
     except Exception as e:
-        logger.error(f"Error in agent connection: {e}")
+        logger.error(f"Connection error: {e}")
     finally:
         if device_id:
             manager.disconnect(device_id)
-            # ✅ Mark offline in DB
             _set_device_offline(device_id)
 
 
 @router.post("/command")
-async def send_command(req: CommandRequest):
+async def send_command(
+    req: CommandRequest,
+    db: Session = Depends(get_db),     
+    current_user: User = Depends(get_current_user)
+):
+    from app.core.dependencies import get_current_user
+    from sqlalchemy.orm import Session
+    from app.db.database import get_db
+
+    # Verify this device belongs to the requesting user
+    device = db.query(Device).filter(
+        Device.device_id == req.device_id,
+        Device.user_id == current_user.user_id
+    ).first()
+    if not device:
+        return JSONResponse(status_code=403, content={"error": "Device not found or access denied"})
+
     if _manager is None:
         return JSONResponse(status_code=503, content={"error": "Manager not initialized"})
 
@@ -134,6 +176,48 @@ async def send_command(req: CommandRequest):
     })
 
     if not sent:
-        return JSONResponse(status_code=404, content={"error": f"Device {req.device_id} not connected"})
+        return JSONResponse(status_code=404, content={"error": "Device not connected"})
 
-    return {"status": "sent", "device_id": req.device_id, "action": req.action}
+    cmd = Command(
+        device_id = req.device_id,
+        action    = req.action,
+        payload   = req.payload,
+        status    = "sent"
+    )
+    db.add(cmd)
+    db.commit()
+
+    return {"status": "sent", "device_id": req.device_id, "action": req.action, "command_id": cmd.command_id}
+
+
+@router.get("/commands/{device_id}")
+async def get_command_history(
+    device_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)      # 🔒 JWT
+):
+    # Ownership check
+    device = db.query(Device).filter(
+        Device.device_id == device_id,
+        Device.user_id == current_user.user_id
+    ).first()
+    if not device:
+        return JSONResponse(status_code=403, content={"error": "Device not found or access denied"})
+
+    commands = db.query(Command).filter(
+        Command.device_id == device_id
+    ).order_by(Command.timestamp.desc()).limit(100).all()
+
+    return {
+        "device_id": device_id,
+        "commands": [
+            {
+                "command_id": c.command_id,
+                "action":     c.action,
+                "payload":    c.payload,
+                "status":     c.status,
+                "result":     c.result,
+                "timestamp":  str(c.timestamp)
+            } for c in commands
+        ]
+    }
