@@ -82,3 +82,90 @@ Return format:
     {"action": "press_key", "payload": {"key": "enter"}}
   ]
 }"""
+
+class AIService:
+    def __init__(self, manager, db):
+        self.manager = manager
+        self.db = db
+        self.client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+
+    async def generate_commands(self, prompt: str) -> dict:
+        try:
+            response = await self.client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.1,
+                max_tokens=500
+            )
+            raw = response.choices[0].message.content.strip()
+            if raw.startswith("```"):
+                raw = raw.split("```")[1]
+                if raw.startswith("json"):
+                    raw = raw[4:]
+            return json.loads(raw.strip())
+        except json.JSONDecodeError as e:
+            logger.error(f"GPT returned invalid JSON: {e}")
+            return {"steps": [], "error": "Failed to parse AI response"}
+        except Exception as e:
+            logger.error(f"OpenAI error: {e}")
+            return {"steps": [], "error": str(e)}
+
+    async def execute_ai_task(self, device_id: str, prompt: str, user_id: str) -> dict:
+        plan = await self.generate_commands(prompt)
+
+        if "error" in plan:
+            return {"status": "error", "message": plan["error"]}
+
+        steps = plan.get("steps", [])
+        if not steps:
+            return {"status": "error", "message": "No steps generated"}
+
+        results = []
+        for i, step in enumerate(steps):
+            action = step.get("action")
+            payload = step.get("payload", {})
+            delay = step.get("delay", 0.8)
+
+            sent = await self.manager.send_to_device(device_id, {
+                "type": "command",
+                "action": action,
+                "payload": payload
+            })
+
+            results.append({
+                "step": i + 1,
+                "action": action,
+                "payload": payload,
+                "sent": sent
+            })
+
+            await asyncio.sleep(delay)
+
+        self._save_history(device_id, user_id, prompt, plan, results)
+
+        return {
+            "status": "executed",
+            "prompt": prompt,
+            "steps_total": len(steps),
+            "results": results
+        }
+
+    def _save_history(self, device_id, user_id, prompt, plan, results):
+        if self.db is None:
+            return
+        try:
+            from app.models.ai_history import AIHistory
+            record = AIHistory(
+                device_id=device_id,
+                user_id=user_id,
+                prompt=prompt,
+                generated_plan=plan,
+                result={"steps": results}
+            )
+            self.db.add(record)
+            self.db.commit()
+        except Exception as e:
+            logger.error(f"Failed to save AI history: {e}")
