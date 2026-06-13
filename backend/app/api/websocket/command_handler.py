@@ -1,13 +1,16 @@
 import logging
 import json
-from fastapi import WebSocket, WebSocketDisconnect, APIRouter
+from fastapi import WebSocket, WebSocketDisconnect, APIRouter, Depends
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
 from app.api.websocket.connection_manager import ConnectionManager
 from app.models.device import Device
 from app.models.command import Command
-from app.db.database import SessionLocal
+from app.models.user import User
+from app.db.database import SessionLocal, get_db
 from app.core.security import decode_access_token
+from app.core.dependencies import get_current_user
 
 logger = logging.getLogger("command_handler")
 router = APIRouter()
@@ -39,7 +42,7 @@ def _save_device_to_db(info: dict, user_id: str = None):
             device.ram_gb      = info.get("ram_gb")
             device.status      = "online"
             if user_id:
-                device.user_id = user_id   # update owner if token provided
+                device.user_id = user_id
         else:
             device = Device(
                 device_id   = info["device_id"],
@@ -93,7 +96,6 @@ async def handle_agent_connection(websocket: WebSocket, manager: ConnectionManag
             await websocket.send_json({"error": "device_id required"})
             await websocket.close()
             return
-
 
         token = data.get("token")
         user_id = None
@@ -151,14 +153,9 @@ async def handle_agent_connection(websocket: WebSocket, manager: ConnectionManag
 @router.post("/command")
 async def send_command(
     req: CommandRequest,
-    db: Session = Depends(get_db),     
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    from app.core.dependencies import get_current_user
-    from sqlalchemy.orm import Session
-    from app.db.database import get_db
-
-    # Verify this device belongs to the requesting user
     device = db.query(Device).filter(
         Device.device_id == req.device_id,
         Device.user_id == current_user.user_id
@@ -194,9 +191,8 @@ async def send_command(
 async def get_command_history(
     device_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)      # 🔒 JWT
+    current_user: User = Depends(get_current_user)
 ):
-    # Ownership check
     device = db.query(Device).filter(
         Device.device_id == device_id,
         Device.user_id == current_user.user_id
