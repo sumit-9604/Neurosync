@@ -9,10 +9,6 @@ from automation.mouse_controller import MouseController
 from automation.keyboard_controller import KeyboardController
 
 logger = logging.getLogger(__name__)
-
-
-
-
 _REGISTRY: dict[str, dict] = {
 
     # ── App launcher ──

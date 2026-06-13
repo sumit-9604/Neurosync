@@ -87,7 +87,7 @@ class AIService:
     def __init__(self, manager, db):
         self.manager = manager
         self.db = db
-        self.client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+        self.client = AsyncOpenAI(api_key=settings.OPEN_API_KEY , base_url="https://openrouter.ai/api/v1")
 
     async def generate_commands(self, prompt: str) -> dict:
         try:
