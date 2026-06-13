@@ -1,3 +1,10 @@
+import json
+import logging
+import asyncio
+from openai import AsyncOpenAI
+from app.config import settings
+
+logger = logging.getLogger("ai_service")
 SYSTEM_PROMPT = """You are NeuroSync, an AI that controls Windows PCs remotely.
 
 Convert the user's natural language request into a JSON command plan.
