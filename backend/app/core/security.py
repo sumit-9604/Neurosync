@@ -10,7 +10,7 @@ logger = logging.getLogger("security")
 def decode_access_token(token: str) -> dict | None:
     try:
         import jwt
-        return jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
+        return jwt.decode(token, settings.JWT_SECRET, algorithms=["HS256"])
     except Exception:
         return None
 
