@@ -7,6 +7,7 @@ import {
 } from 'react-native';
 import { Colors, Fonts, Spacing, Radius } from '../theme';
 import { api } from '../services/apiClient';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const TEMPLATES: Record<string, string> = {
   python: `# NeuroSync Remote Python Executor\nimport sys, platform\n\nprint(f"🚀 Hello from {platform.system()} {platform.release()}!")\nprint(f"Python Executable: {sys.executable}")\n\nfor i in range(1, 4):\n    print(f"Task {i} executed successfully.")\n`,
@@ -24,7 +25,7 @@ export function CodeRunnerScreen({ route, navigation }: any) {
   const [selectedIde, setSelectedIde] = useState<'vscode' | 'pycharm' | 'notepad'>('vscode');
   const [code, setCode] = useState<string>(TEMPLATES.python);
   const [filename, setFilename] = useState<string>('script.py');
-  
+
   const [executing, setExecuting] = useState<boolean>(false);
   const [output, setOutput] = useState<any>(null);
 
@@ -67,7 +68,7 @@ export function CodeRunnerScreen({ route, navigation }: any) {
       if (Array.isArray(devList)) {
         setDevices(devList);
       }
-    } catch (e) {}
+    } catch (e) { }
   };
 
   const handleLanguageChange = (lang: string) => {
@@ -138,10 +139,6 @@ export function CodeRunnerScreen({ route, navigation }: any) {
       setExecuting(false);
     }
   };
-    } finally {
-      setExecuting(false);
-    }
-  };
 
   const copyConsoleOutput = () => {
     if (!output) return;
@@ -156,7 +153,7 @@ export function CodeRunnerScreen({ route, navigation }: any) {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#0b0d19" />
-      
+
       {/* Top Header Bar */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
@@ -169,7 +166,7 @@ export function CodeRunnerScreen({ route, navigation }: any) {
       </View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-        
+
         {/* Step 1: Target Desktop Device */}
         <Text style={styles.sectionHeader}>1. SELECT TARGET DESKTOP DEVICE</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
@@ -207,7 +204,7 @@ export function CodeRunnerScreen({ route, navigation }: any) {
 
         {/* Step 2: Execution Mode */}
         <Text style={styles.sectionHeader}>2. CHOOSE HOW TO EXECUTE</Text>
-        
+
         <TouchableOpacity
           onPress={() => setExecMode('terminal')}
           style={[styles.modeCard, execMode === 'terminal' && styles.modeCardActive]}
